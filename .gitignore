@@ -1,0 +1,36 @@
+# ELSA data files — must never be committed (data use agreement)
+*.dta
+data/*.csv
+data/*.xlsx
+data/*.sav
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment
+.env
+.env.*
+*.env
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Outputs (optional — comment out if you want to track outputs)
+# outputs/figures/
+# outputs/results/
