@@ -24,9 +24,13 @@ elif Path("/content/drive/MyDrive").exists():
 
 # ── 3. Local macOS / Linux fallback ─────────────────────────────────────────
 else:
-    # Edit this to your local path, but do not commit personal paths.
-    # Better: set ELSA_DATA_ROOT in your shell profile instead.
-    DATA_ROOT = Path.home() / "data" / "ELSA" / "UKDA-5050-stata" / "stata" / "stata13_se"
+    # Auto-detect common local paths; set ELSA_DATA_ROOT env var if none match.
+    _candidates = [
+        Path.home() / "Documents" / "University of Surrey" / "Feb 2026 Courses"
+        / "Surrey Courses" / "AIH" / "Group Project" / "UKDA-5050-stata" / "stata" / "stata13_se",
+        Path.home() / "data" / "ELSA" / "UKDA-5050-stata" / "stata" / "stata13_se",
+    ]
+    DATA_ROOT = next((p for p in _candidates if p.exists()), _candidates[-1])
 
 # ── Derived paths ────────────────────────────────────────────────────────────
 # Core wave files
