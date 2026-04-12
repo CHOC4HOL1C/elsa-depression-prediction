@@ -24,13 +24,16 @@ elif Path("/content/drive/MyDrive").exists():
 
 # ── 3. Local macOS / Linux fallback ─────────────────────────────────────────
 else:
-    # Auto-detect common local paths; set ELSA_DATA_ROOT env var if none match.
+    # Auto-search common locations; set ELSA_DATA_ROOT env var if none match.
     _candidates = [
-        Path.home() / "Documents" / "University of Surrey" / "Feb 2026 Courses"
-        / "Surrey Courses" / "AIH" / "Group Project" / "UKDA-5050-stata" / "stata" / "stata13_se",
         Path.home() / "data" / "ELSA" / "UKDA-5050-stata" / "stata" / "stata13_se",
     ]
-    DATA_ROOT = next((p for p in _candidates if p.exists()), _candidates[-1])
+    # Also search ~/Documents for any UKDA-5050-stata install
+    _docs = Path.home() / "Documents"
+    if _docs.exists():
+        _found = list(_docs.rglob("UKDA-5050-stata/stata/stata13_se"))
+        _candidates.extend(_found)
+    DATA_ROOT = next((p for p in _candidates if p.exists()), _candidates[0])
 
 # ── Derived paths ────────────────────────────────────────────────────────────
 # Core wave files
