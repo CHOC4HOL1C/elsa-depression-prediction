@@ -25,6 +25,11 @@ __pycache__/
 .AppleDouble
 .LSOverride
 
+# Office lock files
+~$*.docx
+~$*.pptx
+~$*.xlsx
+
 # Editor
 .vscode/
 .idea/
