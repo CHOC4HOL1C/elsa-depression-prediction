@@ -19,15 +19,31 @@
 
 ## How to run the submission notebook
 
-### Option A — Google Colab (recommended; this is what we tested on)
+### Option A — Google Colab (recommended)
 
-1. Upload the notebook (`ELSA_Depression_Prediction.ipynb`) to Colab.
-2. Make the **ELSA UKDA-5050 Stata folder** accessible to the Colab session. Two routes:
-   - **From Google Drive:** copy the `UKDA-5050-stata` folder into your Drive, then mount Drive when prompted in the notebook (`/content/drive/MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se`).
-   - **Direct upload:** unzip the UKDA-5050 deposit into the Colab session's filesystem (`/content/UKDA-5050-stata/stata/stata13_se`).
-3. Open the **Section 0 → "Set the data path"** cell and edit the `ELSA_PATH` variable to match where the `stata13_se` folder lives. This is the **only** edit required.
-4. Choose **Runtime → Run all** (or `Cmd + F9` / `Ctrl + F9`).
-5. Sit back. The notebook auto-installs missing packages, runs the full pipeline, and writes outputs to `outputs_submission/` next to the notebook.
+The notebook **finds your data automatically** if you put it in any of the standard places. Pick whichever is fastest for you.
+
+#### Fastest — upload a zip directly to the Colab session (~5 minutes)
+
+1. On your machine, zip the `UKDA-5050-stata` folder (right-click → Compress).
+2. Open the notebook (`ELSA_Depression_Prediction.ipynb`) in Colab.
+3. **Runtime → Run all.** When the notebook tells you it could not find data, run the **"Plan B — zip upload"** cell. It opens a file picker; choose your zip and the notebook unzips and continues automatically.
+
+The data lives in the Colab session only and disappears when the session ends — fine for a single evaluation run.
+
+#### Persistent — place data in Google Drive (~30 minutes upload, then permanent)
+
+1. In `drive.google.com`, create a folder called `ELSA`.
+2. Upload the entire `UKDA-5050-stata` folder into it. Final path should be `MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se/`.
+3. Open the notebook in Colab and click **Runtime → Run all.** It auto-mounts Drive and finds the data.
+
+#### Manual override
+
+If your data lives somewhere unusual, edit the single line in **Section 0**:
+
+```python
+ELSA_PATH = "/your/path/to/stata13_se"
+```
 
 ### Option B — Local Jupyter
 
@@ -37,7 +53,7 @@
    pip install -r requirements.txt
    ```
 2. Open the notebook in Jupyter / VS Code.
-3. Edit `ELSA_PATH` in Section 0 to point at your local `stata13_se` folder.
+3. Either set `ELSA_PATH` explicitly in Section 0, or just leave it empty and the auto-locator will scan `~/Documents` for any `stata13_se` folder.
 4. Run all cells.
 
 ---

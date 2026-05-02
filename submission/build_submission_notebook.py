@@ -133,60 +133,207 @@ np.random.seed(SEED)
 print("Imports complete.")
 """)
 
-md("""### Set the data path
+md("""### Locate the ELSA data
 
-Edit the `ELSA_PATH` variable below to point at your `stata13_se` folder. This is the folder that contains files like `wave_6_elsa_data_v2.dta`, `wave_6_ifs_derived_variables.dta`, and so on.
+This cell tries to find your `stata13_se` folder automatically. **You should not need to edit anything below.** It works in three layers:
 
-Common locations:
-- **Colab + Drive:** `/content/drive/MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se`
-- **Local upload:** `/content/UKDA-5050-stata/stata/stata13_se`
-- **Local machine:** wherever you extracted the UKDA-5050-stata download
+1. If you've set `ELSA_PATH` explicitly (the line below), it uses that.
+2. Otherwise it searches common Colab + local locations (Drive, session storage, your home folder).
+3. If neither of those work it scans your Drive (if mounted) for any folder called `stata13_se`.
+
+If all three fail, run the **"Plan B"** cell that follows to upload a zip directly into the Colab session.
 """)
 
-code("""# ── EDIT THIS LINE ──────────────────────────────────────────────────────────
-ELSA_PATH = "/content/drive/MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se"
+code("""# ── Optional: hard-set the data path here. Leave as "" for auto-search. ────
+ELSA_PATH = ""
 # ────────────────────────────────────────────────────────────────────────────
 
-# Mount Google Drive automatically if running on Colab and the path lives there
+ON_COLAB = False
 try:
     import google.colab  # noqa: F401
-    if ELSA_PATH.startswith("/content/drive") and not Path("/content/drive").exists():
-        from google.colab import drive
-        drive.mount("/content/drive")
+    ON_COLAB = True
 except ImportError:
     pass
 
-DATA_ROOT = Path(ELSA_PATH).expanduser()
-assert DATA_ROOT.exists(), (
-    f"ELSA_PATH does not exist: {DATA_ROOT}\\n"
-    f"Set ELSA_PATH to the folder containing the Stata files."
-)
+# Auto-mount Google Drive on Colab so we can look for data there
+if ON_COLAB and not Path("/content/drive").exists():
+    from google.colab import drive
+    drive.mount("/content/drive")
 
-# Build per-wave file lookups
-def _wave_files(wave: int):
-    base = DATA_ROOT
-    return dict(
-        ifs  = base / f"wave_{wave}_ifs_derived_variables.dta",
-        core = base / f"wave_{wave}_elsa_data_v2.dta",
-        fin  = base / f"wave_{wave}_financial_derived_variables.dta",
+# ELSA file names differ slightly across waves (different version suffixes).
+# Per-wave lookup avoids hard-coding wrong names.
+WAVE_FILES = {
+    6: dict(
+        ifs=\"wave_6_ifs_derived_variables.dta\",
+        core=\"wave_6_elsa_data_v2.dta\",
+        fin=\"wave_6_financial_derived_variables.dta\",
+    ),
+    7: dict(
+        ifs=\"wave_7_ifs_derived_variables.dta\",
+        core=\"wave_7_elsa_data.dta\",  # NB: no _v2 suffix at wave 7
+        fin=\"wave_7_financial_derived_variables.dta\",
+    ),
+    8: dict(
+        ifs=\"wave_8_ifs_derived_variables.dta\",
+        # W8 core/financial are optional — we only need IFS for the outcome
+    ),
+}
+
+REQUIRED_FILES = []
+for wave, files in WAVE_FILES.items():
+    for kind, name in files.items():
+        REQUIRED_FILES.append(name)
+
+
+def _validates(p: Path) -> bool:
+    \"\"\"True if the candidate folder has the ELSA Stata files we need.\"\"\"
+    return p.exists() and all((p / f).exists() for f in REQUIRED_FILES)
+
+
+def find_elsa_data(explicit: str = "") -> Path | None:
+    # Layer 1 — explicit path
+    if explicit:
+        p = Path(explicit).expanduser()
+        if _validates(p):
+            return p
+
+    # Layer 2 — common candidate locations
+    candidates = [
+        # Colab + Drive (most likely for graders)
+        "/content/drive/MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se",
+        "/content/drive/MyDrive/UKDA-5050-stata/stata/stata13_se",
+        "/content/drive/MyDrive/ELSA/stata13_se",
+        # Colab session storage (zip upload workflow)
+        "/content/UKDA-5050-stata/stata/stata13_se",
+        "/content/stata13_se",
+        # Local machine fallbacks
+        "~/Documents/UKDA-5050-stata/stata/stata13_se",
+        "~/data/ELSA/UKDA-5050-stata/stata/stata13_se",
+    ]
+    for c in candidates:
+        p = Path(c).expanduser()
+        if _validates(p):
+            return p
+
+    # Layer 3 — recursive scan of Drive (~30 sec)
+    drive_root = Path("/content/drive/MyDrive")
+    if drive_root.exists():
+        print("Scanning Google Drive for stata13_se folder (this may take ~30 sec)...")
+        for p in drive_root.rglob("stata13_se"):
+            if _validates(p):
+                return p
+
+    return None
+
+
+DATA_ROOT = find_elsa_data(ELSA_PATH)
+
+if DATA_ROOT is None:
+    print("=" * 70)
+    print(" ELSA data not found.")
+    print("=" * 70)
+    print()
+    print("Choose one of the following options:")
+    print()
+    print("OPTION A \u2014 Upload a zip to Colab (fastest, ~5 min)")
+    print("  1. On your machine, zip the UKDA-5050-stata folder.")
+    print("  2. In Colab, click the folder icon (left sidebar)")
+    print("     \u2192 click the upload icon \u2192 select your zip file.")
+    print("  3. Run the 'Plan B \u2014 zip upload' cell that follows this one.")
+    print()
+    print("OPTION B \u2014 Place the data in Google Drive (persistent)")
+    print("  1. In drive.google.com, create folder: ELSA")
+    print("  2. Upload the UKDA-5050-stata folder into it.")
+    print("     Final path should be: ELSA/UKDA-5050-stata/stata/stata13_se/")
+    print("  3. Re-run this cell.")
+    print()
+    print("OPTION C \u2014 Set ELSA_PATH manually")
+    print("  Edit the ELSA_PATH variable above to your folder, re-run.")
+    print()
+    raise FileNotFoundError(
+        "ELSA Stata files not found in any common location."
     )
 
-WAVES = {w: _wave_files(w) for w in (6, 7, 8)}
+print(f"\u2713 ELSA data found at: {DATA_ROOT}")
 
-# Verify the files exist
+
+# Build per-wave file lookups using the validated names from WAVE_FILES
+WAVES = {
+    w: {kind: DATA_ROOT / fname for kind, fname in files.items()}
+    for w, files in WAVE_FILES.items()
+}
+
+# Sanity check: confirm every required file is reachable
 missing_files = []
 for w, files in WAVES.items():
     for kind, path in files.items():
         if not path.exists():
-            # Wave 8 only needs IFS for the outcome; other files optional
-            if w == 8 and kind != "ifs":
-                continue
             missing_files.append(str(path))
-
 if missing_files:
-    raise FileNotFoundError("Missing ELSA files:\\n  " + "\\n  ".join(missing_files))
+    raise FileNotFoundError(\"Missing ELSA files:\\n  \" + \"\\n  \".join(missing_files))""")
 
-# Output folder next to the notebook
+md("""### Plan B — upload a zip directly to the Colab session
+
+**Skip this cell** if the cell above printed `ELSA data found at: ...`.
+
+If the auto-locator could not find your data, this cell helps you upload a zipped copy of the UKDA-5050-stata folder directly to the Colab session. After upload it auto-extracts and re-runs the locator.
+
+Steps:
+1. On your machine, right-click the `UKDA-5050-stata` folder \u2192 Compress (creates a zip).
+2. Run this cell.
+3. When the file picker opens, select your zip.
+""")
+
+code("""# Plan B \u2014 zip upload helper (only run if the previous cell failed to find data)
+if 'DATA_ROOT' in dir() and DATA_ROOT is not None:
+    print(\"Data already located. Skipping zip upload.\")
+else:
+    if not ON_COLAB:
+        raise RuntimeError(
+            \"Plan B is only available on Google Colab. \"
+            \"On a local machine, set ELSA_PATH to your data folder.\"
+        )
+
+    from google.colab import files
+    import zipfile, shutil
+
+    print(\"Choose your UKDA-5050-stata zip file in the upload dialog...\")
+    uploaded = files.upload()
+    if not uploaded:
+        raise RuntimeError(\"No file was uploaded.\")
+
+    zip_name = next(iter(uploaded.keys()))
+    zip_path = Path(\"/content\") / zip_name
+    extract_to = Path(\"/content\") / zip_path.stem
+    extract_to.mkdir(parents=True, exist_ok=True)
+
+    print(f\"Extracting {zip_name} ...\")
+    with zipfile.ZipFile(zip_path, \"r\") as zf:
+        zf.extractall(extract_to)
+
+    print(\"Re-running auto-locator...\")
+    DATA_ROOT = find_elsa_data(\"\")
+    if DATA_ROOT is None:
+        # Last-ditch: search the whole /content folder
+        for p in Path(\"/content\").rglob(\"stata13_se\"):
+            if _validates(p):
+                DATA_ROOT = p
+                break
+
+    if DATA_ROOT is None:
+        raise FileNotFoundError(
+            \"Still could not find stata13_se in the uploaded zip. \"
+            \"Verify your zip contains the folder structure: \"
+            \"UKDA-5050-stata/stata/stata13_se/wave_*.dta\"
+        )
+
+    print(f\"\u2713 ELSA data found at: {DATA_ROOT}\")
+    WAVES = {
+        w: {kind: DATA_ROOT / fname for kind, fname in files.items()}
+        for w, files in WAVE_FILES.items()
+    }""")
+
+code("""# Output folder next to the notebook
 OUTDIR = Path.cwd() / "outputs_submission"
 FIG_DIR = OUTDIR / "figures"
 RES_DIR = OUTDIR / "results"
