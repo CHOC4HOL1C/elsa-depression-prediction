@@ -135,13 +135,20 @@ print("Imports complete.")
 
 md("""### Locate the ELSA data
 
-This cell tries to find your `stata13_se` folder automatically. **You should not need to edit anything below.** It works in three layers:
+This cell tries to find your `stata13_se` folder automatically. **You should not need to edit anything below.** It works in four layers:
 
-1. If you've set `ELSA_PATH` explicitly (the line below), it uses that.
+1. If you've set `ELSA_PATH` explicitly, it uses that.
 2. Otherwise it searches common Colab + local locations (Drive, session storage, your home folder).
-3. If neither of those work it scans your Drive (if mounted) for any folder called `stata13_se`.
+3. If neither works, it looks for an UKDA-5050 zip in `/content/` and auto-extracts it. So if you uploaded a zip via the Colab sidebar (folder icon \u2192 upload), this cell handles the rest.
+4. As a last resort, it scans your mounted Drive recursively for any folder called `stata13_se`.
 
-If all three fail, run the **"Plan B"** cell that follows to upload a zip directly into the Colab session.
+#### Recommended workflow on Colab
+
+1. Click the **folder icon** on the left sidebar of Colab.
+2. Click the **upload icon** (page with up-arrow at the top of that panel).
+3. Select your zipped `UKDA-5050-stata.zip`.
+4. Wait for the upload to finish.
+5. Run this cell. The notebook auto-detects and extracts the zip.
 """)
 
 code("""# ── Optional: hard-set the data path here. Leave as "" for auto-search. ────
@@ -215,11 +222,31 @@ def find_elsa_data(explicit: str = "") -> Path | None:
         if _validates(p):
             return p
 
-    # Layer 3 — recursive scan of Drive (~30 sec)
-    drive_root = Path("/content/drive/MyDrive")
+    # Layer 3 \u2014 auto-detect zip uploaded via the Colab sidebar (folder icon)
+    content = Path(\"/content\")
+    if content.exists():
+        zips = sorted(content.glob(\"*.zip\"))
+        for zp in zips:
+            # Cheap sanity check: only handle zips that look like ELSA
+            name_lower = zp.name.lower()
+            if not (\"ukda\" in name_lower or \"5050\" in name_lower
+                    or \"elsa\" in name_lower or \"stata\" in name_lower):
+                continue
+            print(f\"Found zip in session storage: {zp.name}\")
+            print(f\"Extracting to /content/ ...\")
+            import zipfile
+            with zipfile.ZipFile(zp, \"r\") as zf:
+                zf.extractall(content)
+            # Search /content recursively for stata13_se after extraction
+            for p in content.rglob(\"stata13_se\"):
+                if _validates(p):
+                    return p
+
+    # Layer 4 \u2014 recursive scan of Drive (~30 sec)
+    drive_root = Path(\"/content/drive/MyDrive\")
     if drive_root.exists():
-        print("Scanning Google Drive for stata13_se folder (this may take ~30 sec)...")
-        for p in drive_root.rglob("stata13_se"):
+        print(\"Scanning Google Drive for stata13_se folder (this may take ~30 sec)...\")
+        for p in drive_root.rglob(\"stata13_se\"):
             if _validates(p):
                 return p
 
@@ -233,22 +260,26 @@ if DATA_ROOT is None:
     print(" ELSA data not found.")
     print("=" * 70)
     print()
-    print("Choose one of the following options:")
+    print(\"Choose one of the following options:\")
     print()
-    print("OPTION A \u2014 Upload a zip to Colab (fastest, ~5 min)")
-    print("  1. On your machine, zip the UKDA-5050-stata folder.")
-    print("  2. In Colab, click the folder icon (left sidebar)")
-    print("     \u2192 click the upload icon \u2192 select your zip file.")
-    print("  3. Run the 'Plan B \u2014 zip upload' cell that follows this one.")
+    print(\"OPTION A \u2014 Upload a zip via the Colab sidebar (fastest, ~5 min)\")
+    print(\"  1. On your machine, zip the UKDA-5050-stata folder.\")
+    print(\"  2. In Colab, click the folder icon on the LEFT sidebar.\")
+    print(\"  3. Click the upload icon (page with up-arrow) and select your zip.\")
+    print(\"  4. Wait for the upload bar to finish.\")
+    print(\"  5. Re-run THIS cell. The notebook auto-detects and extracts the zip.\")
     print()
-    print("OPTION B \u2014 Place the data in Google Drive (persistent)")
-    print("  1. In drive.google.com, create folder: ELSA")
-    print("  2. Upload the UKDA-5050-stata folder into it.")
-    print("     Final path should be: ELSA/UKDA-5050-stata/stata/stata13_se/")
-    print("  3. Re-run this cell.")
+    print(\"OPTION B \u2014 Place the data in Google Drive (persistent across sessions)\")
+    print(\"  1. In drive.google.com, create folder: ELSA\")
+    print(\"  2. Upload the UKDA-5050-stata folder into it.\")
+    print(\"     Final path should be: ELSA/UKDA-5050-stata/stata/stata13_se/\")
+    print(\"  3. Re-run THIS cell.\")
     print()
-    print("OPTION C \u2014 Set ELSA_PATH manually")
-    print("  Edit the ELSA_PATH variable above to your folder, re-run.")
+    print(\"OPTION C \u2014 Set ELSA_PATH manually\")
+    print(\"  Edit the ELSA_PATH variable above to your folder, re-run THIS cell.\")
+    print()
+    print(\"OPTION D \u2014 In-notebook upload (use only if sidebar upload failed)\")
+    print(\"  Run the 'Plan B \u2014 zip upload' cell that follows this one.\")
     print()
     raise FileNotFoundError(
         "ELSA Stata files not found in any common location."
