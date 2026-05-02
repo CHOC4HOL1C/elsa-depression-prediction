@@ -39,3 +39,5 @@ __pycache__/
 # Outputs (optional — comment out if you want to track outputs)
 # outputs/figures/
 # outputs/results/
+submission/ELSA_Depression_Prediction_Submission/
+submission/ELSA_Depression_Prediction_Submission.zip
