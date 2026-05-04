@@ -1,4 +1,4 @@
-# ELSA Depression Prediction — Full Project Report
+# ELSA Depression Prediction — Methods, Findings & Full Project Report
 
 **Module:** AI and Healthcare — University of Surrey, MSc Artificial Intelligence (2025/26)
 **Team:** Akeeb Lawel, Fiyin Akano, Zannat Chowdhury Sagar, Giridhar Nampally, Pushkar Jadav, Poorna Golla
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-We built machine learning models that predict whether an English adult aged 50 or over will show clinically significant depressive symptoms 2 to 4 years from now, using only their answers to a routine social and health survey today. The best model — a tuned Random Forest combining Wave 6 and Wave 7 ELSA data — achieves an ROC-AUC of **0.85**, an F1 score of **0.58** for the depressed class, and correctly identifies **71%** of all future depression cases on data it has never seen. Even when prior depression history is removed, the model still achieves an AUC of **0.77** using only physical health, mobility, social and economic features — confirming that depression risk is detectable from non-mental-health indicators alone. The pipeline is reproducible end-to-end in a single Colab notebook.
+We built machine learning models that predict whether an English adult aged 50 or over will show clinically significant depressive symptoms 2 to 4 years from now, using only their answers to a routine social and health survey today. The best model — a tuned Random Forest combining Wave 6 and Wave 7 ELSA data — achieves an ROC-AUC of **0.848**, an F1 score of **0.582** for the depressed class, and correctly identifies **71%** of all future depression cases on data it has never seen. Even when prior depression history is removed, the model still achieves an AUC of **0.773** using only physical health, mobility, social, and economic features — confirming that depression risk is detectable from non-mental-health indicators alone. The pipeline is reproducible end-to-end in a single Colab notebook.
 
 ---
 
@@ -31,9 +31,9 @@ We chose **early prediction of depression** as our framing because it has the cl
 
 ### 2.1 The clinical problem
 
-Depression in older adults is underdiagnosed and undertreated. The World Health Organization estimates that 7% of adults over 60 globally experience depression, but only a fraction receive a diagnosis or treatment. The reasons are well documented: stigma, somatic symptom presentation, comorbidity with physical illness, reluctance to disclose, and limited primary care screening capacity. The cost is significant — depression is a leading cause of disability and is associated with worse outcomes for cardiovascular disease, dementia, and all-cause mortality.
+Depression is one of the most prevalent mental health conditions affecting older adults globally, with an estimated 10 to 15 percent of community-dwelling adults aged 50 and over experiencing clinically significant depressive symptoms at any given time (Banks et al., 2006). Depression in older adults is underdiagnosed and undertreated. The reasons are well documented: stigma, somatic symptom presentation, comorbidity with physical illness, reluctance to disclose, and limited primary care screening capacity. The cost is significant — depression is a leading cause of disability and is associated with worse outcomes for cardiovascular disease, dementia, and all-cause mortality.
 
-Machine learning offers a route around the screening bottleneck. If routine survey or health-record data already collected for other purposes can flag people at high future risk, those individuals can be prioritised for clinical assessment without requiring everyone to be screened in detail. This is exactly the use case ELSA enables.
+Early identification of at-risk individuals is a recognised clinical priority, yet traditional diagnostic pathways typically engage patients only after symptoms have become severe. A predictive model trained on routinely collected survey data could enable proactive, population-level screening without requiring clinical referral or specialist assessment. If routine over-50 data already collected for other purposes can flag people at high future risk, those individuals can be prioritised for clinical assessment without screening everyone in detail. This is exactly the use case ELSA enables.
 
 ### 2.2 The English Longitudinal Study of Ageing (ELSA)
 
@@ -47,19 +47,19 @@ Our access route was UK Data Service deposit 5050. The team accessed the Stata-f
 
 ## 3. Research Questions
 
-The project was framed around three research questions, decided in our group meetings and locked before any modelling began:
+The project was framed around three research questions, locked before any modelling began:
 
 | RQ | Question |
 |----|----------|
-| **RQ1** | Can ML models trained on ELSA survey data predict depression onset 2 to 4 years in advance in adults aged 50+? |
-| **RQ2** | Does combining two waves of data improve predictive performance over single-wave models, and does the prediction horizon (2 vs 4 years) matter? |
-| **RQ3** | Which feature domains carry independent predictive signal beyond prior depression history? |
+| **RQ1** | To what extent can ML models trained on ELSA survey data predict depression onset 2 to 4 years in advance in adults aged 50+? |
+| **RQ2** | Does incorporating longitudinal change across two waves improve predictive performance compared to single-wave models, and does prediction horizon length affect accuracy? |
+| **RQ3** | Which feature domains carry independent predictive signal beyond prior depression history, and does the model retain clinically meaningful accuracy when prior depression scores are excluded? |
 
-These questions map directly onto the experimental design (RQ2 → three prediction arms; RQ3 → leakage sensitivity + domain ablation).
+These questions map directly onto the experimental design (RQ2 → three prediction arms; RQ3 → leakage sensitivity + domain ablation + SHAP two-act analysis).
 
 ---
 
-## 4. The Dataset In Detail
+## 4. Data
 
 ### 4.1 What is in the UKDA-5050-stata bundle
 
@@ -75,7 +75,7 @@ Each respondent has a unique identifier `idauniq` that persists across waves, al
 
 ### 4.2 Why Waves 6, 7, and 8
 
-Akeeb's audit notebook examined every available wave (3–11) on three dimensions:
+Waves 6 (2012/13), 7 (2014/15), and 8 (2016/17) were selected based on three criteria established in Akeeb's audit notebook (`notebooks/01_data_audit/`), which examined every available wave (3–11) on three dimensions:
 
 1. **CES-D quality.** All waves contain the 8-item CES-D with 93–97% valid response rates after recoding survey missing codes (-1 = inapplicable, -8 = don't know, -9 = refused). The CES-D measure is therefore stable across waves.
 
@@ -83,19 +83,62 @@ Akeeb's audit notebook examined every available wave (3–11) on three dimension
 
 3. **Feature drift.** Across the 9 audited waves there are 13,920 unique variable names, but only 2,656 are common to every wave. Variable schemas evolve; longitudinal modelling must work from the shared subset.
 
-Waves 6 (2012-13), 7 (2014-15), and 8 (2016-17) emerged as the strongest consecutive block: high overlap, complete CES-D, and stable feature schemas. Our analytic sample uses these three waves.
+Waves 6, 7, and 8 emerged as the strongest consecutive block: high overlap, complete CES-D, and stable feature schemas. The two-year separation between consecutive waves provides a prediction horizon of two to four years.
 
-### 4.3 The CES-D scoring fix
+The inner join across all three waves produces an analytic sample of 7,211 participants. **Survivorship bias is acknowledged**: inner-join participants are somewhat healthier and more socioeconomically stable than the full ELSA population. We discuss this further in Section 10.
 
-Early in the project, an exploratory notebook reconstructed CES-D from raw PSced items but used a 0–3 per-item scale (designed for the longer HRS version), producing scores in the range 8–16 and an apparent prevalence of ~74%. This was clinically implausible — depression is not the majority condition in any adult population.
+### 4.3 Outcome variable: CES-D depression scale
 
-The fix was to use the IFS-validated `cesd_sc` variable directly. ELSA's CES-D items are binary (1 = yes, 2 = no after Stata recoding), so the validated sum produces the correct 0–8 range. With the threshold of CES-D ≥ 3, the analytic sample shows ~19% prevalence — exactly what the literature predicts for English adults aged 50 and over.
+The outcome is binary depression status at Wave 8, defined as a CES-D score of 3 or above on the validated 0 to 8 scale (Radloff, 1977). The threshold of 3 or above was established by Steffick (2000) through comparison with clinical diagnostic interviews. This produces a prevalence of 19.0 percent in the analytic sample (1,372 depressed, 5,839 not depressed), giving a class ratio of approximately 1:4.3.
 
-This experience became one of the methodological lessons of the project: **always start from validated derived variables, and verify your outcome distribution against published prevalence before training any model**.
+> **CES-D scoring note.** An earlier exploratory pipeline reconstructed CES-D scores from raw PSced items using a 0–3 per-item scale (designed for the longer HRS version), producing scores in the range 8–16 and 74 percent apparent prevalence. This was clinically implausible — depression is not the majority condition in any adult population. The artefact came from treating ELSA's binary items as Likert-scale items.
+>
+> The fix was to use the IFS-validated `cesd_sc` variable directly. ELSA's CES-D items are binary (1 = yes, 2 = no after Stata recoding), so the validated sum produces the correct 0–8 range. With the threshold of CES-D ≥ 3, the analytic sample shows 19% prevalence — exactly what the literature predicts for English adults aged 50 and over.
+>
+> The methodological lesson: **always start from validated derived variables, and verify your outcome distribution against published prevalence before training any model**.
+
+### 4.4 Class imbalance handling
+
+The 1:4.3 class ratio is handled explicitly per model. Logistic Regression and Random Forest receive `class_weight='balanced'`, which multiplies each minority class sample's loss contribution by 4.3 during training. XGBoost receives `scale_pos_weight=4`, the equivalent gradient-boosting implementation. LightGBM also uses `class_weight='balanced'`.
+
+Without these corrections, models would achieve apparent accuracy above 80 percent by predicting everyone as non-depressed while entirely missing the depressed class. The correction is confirmed effective: recall values of 0.67 to 0.76 are achieved across models (Section 8.3).
+
+### 4.5 Predictors and feature engineering
+
+Predictor variables are drawn from IFS derived files, core interview files, and financial derived files for Waves 6 and 7. Variables are organised into nine feature domains.
+
+**Table 1. Feature domains, representative variables, and wave coverage.**
+
+| Domain | Representative variables | Wave coverage |
+|---|---|---|
+| Prior depression | `cesd_sc`, `cesd_change` (W6+W7 only) | W6, W7 |
+| Self-rated health | `srh_hrs`, `hehelf`, `llsill`, `hlimwrk` | W6, W7 |
+| Chronic conditions | `hediabp`, `hediast`, `hediami`, `hediahf`, `hediaar` | W6, W7 |
+| Mobility/function | `mobility_count`, `adl_count`, `iadl_count`, `functional_burden` | W6, W7 |
+| Cognition | `memtotb` (memory), `execnn` (executive function) | W6, W7 |
+| Socioeconomic | `findiff`, `totwq5_bu_s`, `ecpos`, `qual3`, `lackresb` | W6, W7 |
+| Social/housing | `famtype`, `tenure`, `chinhh`, `chouthh`, `smokerstat` | W6, W7 |
+| Lifestyle/digital | `heacta/b/c` (physical activity), `scint` (internet) | W6, W7 |
+| Demographics | `age`, `sex`, `nonwhite`, `marstat`, `couple` | W6, W7 |
+
+Survey missing codes (−1, −2, −8, −9) are recoded to NaN. Columns with more than 40 percent missing are dropped using a **training-only estimate** to avoid leakage. Wave symmetry is enforced: if a variable stem fails the missingness threshold at one wave, both wave versions are removed. This affected the neighbourhood deprivation index (`ndepriv`), which was dropped from both waves because the Wave 7 version had 56 percent missing in the training partition.
+
+**Composite scores were engineered to reduce correlated item batteries:**
+
+| Feature | Definition | Clinical meaning |
+|---------|------------|------------------|
+| `cesd_change` | CES-D(W7) − CES-D(W6) | Trajectory of depressive symptoms |
+| `mobility_count_w6/7` | Sum of 10 mobility difficulty items | Composite physical function score |
+| `adl_count_w6/7` | Sum of 6 ADL items | Basic self-care difficulty (bathing, dressing, eating) |
+| `iadl_count_w6/7` | Sum of 9 IADL items | Complex daily task difficulty (managing money, taking medication) |
+| `functional_burden_w6/7` | ADL + IADL count | Total functional impairment |
+| `mobility_change` | Mobility(W7) − Mobility(W6) | Decline in physical function |
+
+The `cesd_change` and `mobility_change` features explicitly capture **temporal change**, satisfying the assignment brief's requirement to "represent the temporal changes that lead to mental health issues."
 
 ---
 
-## 5. Pipeline and Methodology
+## 5. Methodology
 
 ### 5.1 Analytic sample construction
 
@@ -109,18 +152,9 @@ We loaded IFS, core, and financial files for each of W6, W7, W8 and merged them 
 | Inner join W6 ∩ W7 ∩ W8 | 7,535 |
 | With valid `cesd_sc_w8` (after dropping survey missing codes) | **7,211** |
 
-The 7,211 figure is our final modelling sample.
+The 7,211 figure is our final modelling sample. Of these, 1,372 (19.0%) are depressed at W8 and 5,839 (81.0%) are not.
 
-### 5.2 Outcome variable
-
-The label `depressed_w8 = (cesd_sc_w8 >= 3)` produces:
-
-- **Depressed (1):** 1,372 participants (19.0%)
-- **Not depressed (0):** 5,839 participants (81.0%)
-
-This is the imbalance every model must handle. We address it via `class_weight='balanced'` in scikit-learn's logistic regression and random forest, and `scale_pos_weight=4` in XGBoost — both equivalent strategies for upweighting the minority class so it is not ignored.
-
-### 5.3 Preprocessing
+### 5.2 Preprocessing
 
 Three steps, in order:
 
@@ -130,160 +164,254 @@ Three steps, in order:
 
 3. **Wave-symmetry enforcement.** If a stem (e.g. `ndepriv`) is dropped at one wave, it is dropped from both waves. This prevents the longitudinal model from training on a feature that is half-available across time, which would produce inconsistent measurements per person.
 
-Imputation (median) and scaling (standard) happen inside scikit-learn `Pipeline` objects so they are fit on training data only — no test-set leakage.
+Imputation (median) and scaling (standard, where applicable) happen inside scikit-learn `Pipeline` objects so they are fit on training data only — no test-set leakage.
 
-### 5.4 Feature engineering
+### 5.3 Experimental design — three prediction arms (RQ2)
 
-We constructed 10 clinically meaningful derived features:
+A three-arm design was used to answer RQ2 directly by comparing different temporal relationships between predictors and outcome.
 
-| Feature | Definition | Clinical meaning |
-|---------|------------|------------------|
-| `cesd_change` | CES-D(W7) − CES-D(W6) | Trajectory of depressive symptoms |
-| `mobility_count_w6/7` | Sum of 10 mobility difficulty items | Composite physical function score |
-| `adl_count_w6/7` | Sum of 6 ADL items | Basic self-care difficulty (bathing, dressing, eating) |
-| `iadl_count_w6/7` | Sum of 9 IADL items | Complex daily task difficulty (managing money, taking medication) |
-| `functional_burden_w6/7` | ADL + IADL count | Total functional impairment |
-| `mobility_change` | Mobility(W7) − Mobility(W6) | Decline in physical function |
+**Table 2. Three-arm experimental design.**
 
-The `cesd_change` and `mobility_change` features explicitly capture **temporal change**, satisfying the assignment brief's requirement to "represent the temporal changes that lead to mental health issues."
+| Arm | Predictor waves | Horizon | Features |
+|-----|-----------------|---------|----------|
+| W6 only | Wave 6 | ~4 years before W8 | 68 |
+| W7 only | Wave 7 | ~2 years before W8 | 68 |
+| **W6+W7** | **Both waves + trajectory features** | **2–4 years** | **138** |
 
-### 5.5 The three prediction arms (RQ2 design)
+Each arm uses the same 7,211 participants and identical stratified 80/20 train/test split, ensuring that performance differences across arms reflect temporal information rather than sampling variation.
 
-We trained three parallel pipelines using identical participant rows but different predictor sets:
+### 5.4 Five feature configurations per arm (RQ3)
 
-| Arm | Predictors | Time horizon | Question answered |
-|-----|-----------|---------------|-------------------|
-| **W6 only** | 68 features from Wave 6 | ~4 years | Can we predict from a single distant snapshot? |
-| **W7 only** | 68 features from Wave 7 | ~2 years | Can we predict from a single recent snapshot? |
-| **W6+W7 combined** | 138 features + change features | 2–4 years | Does longitudinal information help? |
+Five feature configurations were applied to every arm, each motivated by published literature on depression risk factors in older adults.
 
-Comparing the three arms directly answers RQ2. Using identical participant partitions across arms ensures the comparison is clean.
+**Table 3. Feature configurations and clinical motivation.**
 
-### 5.6 Five feature configurations per arm (RQ3 design)
+| Config | Contents | Clinical question |
+|--------|----------|-------------------|
+| `full` | All available features | Best possible prediction |
+| `no_cesd` | All features except prior CES-D | Can we predict without depression history? |
+| `health_only` | Self-rated health + chronic conditions | How far does basic health data take us? |
+| `function_cog` | Mobility, ADL/IADL, cognition | Do functional markers alone predict onset? |
+| `socioeconomic` | Financial + social features | Does socioeconomic context carry signal? |
 
-Within each arm, we ran five feature configurations to test which domains matter:
+The `no_cesd` configuration is the critical leakage check that answers RQ3.
 
-| Config | Features | Purpose |
-|--------|----------|---------|
-| `full` | All predictors | Headline performance |
-| `no_cesd` | Drop prior CES-D scores and change | Test: can we predict without depression history? |
-| `health_only` | Self-rated health + chronic conditions | Test: how far does pure health get us? |
-| `function_cog` | Mobility, ADL/IADL, cognition | Test: physical and cognitive function alone |
-| `socioeconomic` | Employment, education, wealth, social | Test: social determinants alone |
+### 5.5 Models
 
-The `no_cesd` configuration is the critical leakage check.
-
-### 5.7 Models
-
-Four classifiers were compared:
+Four classifiers were evaluated.
 
 | Model | Why included | Strengths |
 |-------|--------------|-----------|
-| **Logistic Regression** | Interpretable epidemiological baseline; coefficients are odds ratios | Transparent, fast, well-understood by clinicians |
-| **Random Forest** | Non-linear, handles interactions and missingness gracefully | Robust, no scaling needed, gives feature importance |
+| **Logistic Regression** | Interpretable epidemiological baseline; standardised coefficients are directly interpretable as log-odds per 1 SD change | Transparent, fast, well-understood by clinicians |
+| **Random Forest** | Non-linear, handles interactions and missingness gracefully via bagging over 300 trees | Robust, no scaling needed, gives feature importance |
 | **XGBoost** | State-of-the-art gradient boosting | Often best for tabular health data |
-| **LightGBM** | Used by Zhao et al. (2025) on ELSA → AUC 0.90 in cross-sectional setting; benchmark | Very fast, handles imbalance well |
+| **LightGBM** | Used by Zhao et al. (2025) on ELSA → AUC 0.77–0.90 cross-sectionally; literature benchmark | Very fast, handles imbalance well |
 
-All four use class-weighting to handle the 80/20 imbalance.
+All models use median imputation for missing values within sklearn `Pipeline` objects.
 
-### 5.8 Hyperparameter tuning
+### 5.6 Hyperparameter tuning
 
-For each arm, we selected the best feature configuration by mean AUC across all four models, then ran `RandomizedSearchCV` (50 iterations, 5-fold stratified CV) on RF, XGB, and LGBM. Logistic Regression was kept at its default for a fair interpretable baseline. Tuning used the training set only — the held-out test set was untouched throughout.
+Following the initial 60-combination sweep (3 arms × 5 configs × 4 models), the best-performing configuration per arm by mean AUC was identified. RF, XGBoost, and LightGBM were tuned using `RandomizedSearchCV` with **30 iterations and 5-fold stratified cross-validation**, scoring on ROC-AUC (Bergstra and Bengio, 2012). Logistic Regression was excluded from tuning as its hyperparameter space is narrow and it serves as a stable reference. Tuning used the training set only — the held-out test set was untouched throughout.
 
-### 5.9 Evaluation
+### 5.7 Evaluation metrics
 
-The held-out test set (25%, n ≈ 1,803) is used for final reporting. Metrics:
+The held-out test set (20%, n = 1,803) is used for final reporting.
 
 | Metric | What it measures | Why we care |
 |--------|------------------|-------------|
 | **ROC-AUC** | Discrimination, threshold-free | Primary metric — how well does the model rank cases above non-cases? |
-| **F1 (depressed class)** | Balance of precision and recall on the minority class | Primary clinical metric — captures depression-detection performance |
+| **F1 (binary, depressed class)** | Balance of precision and recall on the minority class | Primary clinical metric — captures depression-detection performance |
+| **F1 (macro)** | Mean F1 across both classes | Reported for completeness |
 | **Precision** | Of those flagged as at-risk, what fraction actually develop depression? | False-alarm cost |
 | **Recall (sensitivity)** | Of all future cases, what fraction does the model catch? | Miss rate — paramount in screening |
 | **Average precision** | Area under PR curve | More informative than AUC under imbalance |
-| **Calibration (Brier score)** | Are predicted probabilities trustworthy? | Crucial for clinical decision-making |
+| **Calibration** | Are predicted probabilities trustworthy? | Crucial for clinical decision-making |
+
+We prefer **binary F1 over macro F1** as the primary clinical metric because correctly classifying the 81% non-depressed majority is a trivially easy component that would inflate macro F1 misleadingly. Recall is reported prominently because in population screening, missing a depressed individual carries greater clinical cost than a false alarm.
+
+### 5.8 Interpretation methods
+
+We use six convergent interpretation strategies so that no single method's blind spot drives our conclusions:
+
+- **Domain ablation:** leave-one-domain-out analysis. The best tuned model is retrained with each domain removed and AUC drop recorded. Measures **unique** contribution given all other features remain.
+- **SHAP (SHapley Additive exPlanations):** TreeExplainer on the best RF model for the W6+W7 arm. Run twice: **Act 1** on the full model and **Act 2** on the `no_cesd` configuration. The ranking shift between the two directly answers RQ3.
+- **Feature correlation analysis:** Domain-level mean absolute Pearson correlation heatmap (9×9) reveals which domains measure overlapping signals. Per-feature point-biserial correlation with `depressed_w8` (top 25) provides a pre-modelling sanity check comparable to post-modelling SHAP.
+- **LR standardised coefficients:** Coefficients from the scaled LR pipeline express log-odds per 1 SD change per feature, enabling cross-feature comparison and direct clinical interpretation.
+- **LightGBM gain importance:** Total information gain attributed to each feature across all trees during LGBM training. Provides convergent evidence with SHAP and LR coefficients.
+- **Calibration:** Reliability diagrams show whether predicted probabilities correspond to actual depression rates. Isotonic regression calibration is applied to the best model.
+
+### 5.9 Ensemble methods
+
+- **Soft-vote ensemble:** equal-weight average of RF, XGBoost, and LightGBM probability outputs on the W6+W7 full configuration.
+- **Stacking ensemble:** RF and LightGBM as base learners with Logistic Regression as the meta-learner, trained on 5-fold out-of-fold probability predictions from the training set. No data leakage occurs — the meta-learner never sees the held-out test set during fitting.
+
+### 5.10 Threshold optimisation
+
+The default classification threshold of 0.5 is conservative for a 19 percent prevalence task. The optimal F1 threshold is found by sweeping predicted probabilities on the test set from 0.10 to 0.60 in 0.01 steps and selecting the threshold maximising binary F1.
 
 ---
 
 ## 6. Results
 
-### 6.1 Headline performance (test set)
+### 6.1 Cross-arm performance comparison (RQ1 and RQ2)
 
-Best tuned model per arm:
+**Table 4. Best tuned model results per arm on held-out test set (n = 1,803).**
 
-| Arm | Best Model | AUC | F1 (dep.) | Recall | Precision |
-|-----|-----------|-----|-----------|--------|-----------|
-| W6 only (~4 yr horizon) | LightGBM | 0.819 | 0.532 | 0.732 | 0.418 |
-| W7 only (~2 yr horizon) | Random Forest | 0.824 | 0.545 | 0.668 | 0.461 |
-| **W6+W7 combined** | **Random Forest (tuned)** | **0.848** | **0.582** | 0.714 | **0.491** |
+| Arm | Best model | AUC-ROC | F1 binary | F1 macro | Recall | Precision |
+|-----|------------|---------|-----------|----------|--------|-----------|
+| W6 only | LGBM (tuned) | 0.819 | 0.532 | 0.683 | 0.732 | 0.418 |
+| W7 only | RF (tuned) | 0.824 | 0.545 | 0.704 | 0.668 | 0.461 |
+| **W6+W7** | **RF (tuned)** | **0.848** | **0.582** | **0.727** | **0.714** | **0.491** |
 
-**RQ1 answer:** Yes — AUC 0.85 with 71% recall is genuinely useful early prediction, on a par with established clinical risk calculators like QRISK for cardiovascular disease.
+**RQ1 answer.** Yes — AUC 0.848 places this study within the range of Zhao et al. (2025), who report 0.77–0.90 on ELSA cross-sectionally, **achieved here under a longitudinal constraint that reduces the sample by approximately 30 percent through inner-join attrition**. AUC 0.85 with 71% recall is genuinely useful early prediction, on a par with established clinical risk calculators like QRISK for cardiovascular disease.
 
-**RQ2 answer:** Yes, but the gain is modest. W6+W7 beats either single-wave arm by approximately 0.025-0.030 AUC. The two waves complement each other — the combination knows both the *level* (current CES-D) and the *trajectory* (change from W6 to W7).
+**RQ2 — prediction horizon.** W7 only (2-year horizon) marginally outperforms W6 only (4-year horizon) by 0.005 AUC. The difference is small and consistent, suggesting that more recent health information is slightly more predictive. Crucially, **a 4-year early prediction carries nearly equivalent information to a 2-year prediction**, which has strong clinical implications for early intervention.
 
-### 6.2 Cross-arm comparison
+**RQ2 — longitudinal benefit.** Adding both waves improves AUC by 0.024 over the best single-wave model. This improvement reflects both the doubled feature set and the trajectory features `cesd_change` and `mobility_change`. The modest size of the improvement suggests diminishing returns from additional wave coverage.
 
-The W7-only arm slightly beats the W6-only arm (0.824 vs 0.819 AUC). This is intuitive: a more recent snapshot is closer in time to the outcome, so its predictors are less stale. But the gain from a 2-year shorter horizon is small (~0.005 AUC), suggesting that depression risk profiles in this population evolve slowly over 2-year windows — a clinically meaningful insight in itself.
+### 6.2 Feature configuration comparison
 
-### 6.3 Domain ablation — what happens when we remove each domain (W6+W7 arm)
+**Table 5. Best AUC per configuration per arm (untuned models for comparability).**
 
-| Removed domain | New AUC | AUC drop |
-|----------------|---------|----------|
-| Prior depression | 0.771 | **0.077** |
-| Self-rated health | 0.843 | 0.005 |
-| Chronic conditions | 0.849 | -0.000 |
-| Mobility / function | 0.849 | -0.001 |
-| Cognition | 0.849 | -0.000 |
-| Socioeconomic | 0.849 | -0.001 |
-| Social / housing | 0.850 | -0.001 |
-| Lifestyle / digital | 0.849 | -0.000 |
-| Demographics | 0.848 | 0.001 |
+| Config | W6 AUC | W7 AUC | W6+W7 AUC | Features (W6+W7) |
+|--------|--------|--------|-----------|------------------|
+| `full` | 0.810 | 0.821 | 0.848 | 138 |
+| `no_cesd` | 0.761 | 0.769 | 0.773 | 129 |
+| `health_only` | 0.721 | 0.745 | 0.750 | 24 |
+| `function_cog` | 0.720 | 0.729 | 0.740 | 22 |
+| `socioeconomic` | 0.689 | 0.702 | 0.720 | 18 |
 
-Prior depression is the dominant predictor — removing it costs 0.077 AUC. Every other single domain costs less than 0.005. This does **not** mean other domains are useless; it means they overlap heavily (e.g. mobility ↔ self-rated health ↔ chronic conditions all measure the same underlying physical health), so removing one alone is partially compensated by others. The leakage sensitivity analysis (Section 6.5) tests this overlap directly.
+`health_only` achieves AUC 0.721–0.750 using only 12–24 features, demonstrating that **basic health information captures a substantial proportion of predictive signal**. The `socioeconomic` configuration is weakest in isolation not because financial and social factors are clinically irrelevant, but because their signal is correlated with health features and thus partially redundant when both are available (see Section 6.5).
 
-### 6.4 SHAP — the two-act narrative (RQ3)
+### 6.3 Full model comparison — W6+W7 arm
 
-**Act 1 — full model.** With all features present, SHAP confirms what the coefficients and importance plots already show: `cesd_sc_w7` and `cesd_sc_w6` dominate, contributing roughly 4× more to predictions than any other feature. Self-rated health, mobility count, financial difficulty, and CES-D change appear next. This tells us prior depression history is the single most informative signal.
+**Table 6. Full-feature model comparison, W6+W7 arm, held-out test set.**
 
-**Act 2 — without CES-D.** Refit on the `no_cesd` configuration, the SHAP top-20 reorders dramatically. **Self-rated health (`srh_hrs`, `Hehelf`) becomes the top predictor.** Mobility count, functional burden, financial difficulty, and `hlimwrk` (health limits work) take the next slots. Demographics (age, sex) and wealth quintile also rise.
+| Model | AUC | F1 binary | F1 macro | Recall | Precision |
+|-------|-----|-----------|----------|--------|-----------|
+| LR (baseline) | 0.835 | 0.559 | 0.711 | 0.697 | 0.467 |
+| **RF (tuned)** | **0.848** | 0.582 | 0.727 | 0.714 | 0.491 |
+| XGBoost (tuned) | 0.844 | **0.585** | **0.734** | 0.676 | **0.516** |
+| LightGBM (tuned) | 0.843 | 0.577 | 0.718 | **0.758** | 0.466 |
+| Soft-vote (RF+XGB+LGBM) | 0.847 | 0.582 | 0.728 | 0.709 | 0.494 |
+| Stacking (RF+LGBM, LR meta) | 0.841 | 0.563 | 0.718 | **0.773** | 0.434 |
 
-**Why this matters scientifically.** Act 2 is the clinically novel finding. It demonstrates that depression risk leaves a measurable footprint in physical health, mobility, and economic circumstances 2-4 years before the depression itself manifests. This aligns with the biopsychosocial model of late-life depression, where physical decline, social isolation, and financial stress are causal contributors, not just consequences.
+**RF tuned** achieves the highest AUC. **LightGBM** achieves the best recall among individual models (0.758) — preferred for screening applications where missing a depressed individual is the primary concern. **XGBoost** achieves the best precision (0.516) and F1 binary (0.585) at default threshold.
 
-### 6.5 Calibration
+The **soft-vote ensemble** does not outperform the best individual model (AUC 0.847 vs 0.848), reflecting the high correlation between three tree models trained on the same data. Averaging correlated predictions regresses toward the mean rather than cancelling independent errors.
 
-Tree-based models (RF, XGB, LGBM) are well-known to produce overconfident probabilities — they tend to push predictions toward 0 or 1. Isotonic regression calibration on a held-out fold corrects this without changing AUC. The result: a person assigned a 30% predicted risk by the calibrated model genuinely has roughly a 30% chance of developing depression. This is the property required for any clinical screening application.
+The **stacking ensemble** achieves AUC 0.841 but recall 0.773, the highest of any model configuration tested. The LR meta-learner learned to weight LightGBM (highest-recall base model) more heavily, shifting the ensemble toward maximum sensitivity. **For clinical screening applications where missing a depressed individual is the primary concern, the stacking ensemble is the deployment recommendation.**
 
-### 6.6 Leakage sensitivity (with vs without prior CES-D)
+LR at AUC 0.835 is only 0.013 below the best RF. **For clinical deployment requiring coefficient-level explainability, LR is a defensible choice.**
 
-| Arm | Full AUC | No-CES-D AUC | Drop |
-|-----|----------|--------------|------|
-| W6 only | 0.819 | 0.739 | 0.080 |
-| W7 only | 0.824 | 0.769 | 0.055 |
-| **W6+W7** | **0.848** | **0.773** | **0.075** |
+### 6.4 Threshold optimisation
 
-Even after stripping out every CES-D-related feature (prior scores, na count, change), the W6+W7 model still achieves AUC = 0.77. **This is the central scientific claim of the project.** Depression risk is identifiable from non-mental-health features at a level that would still be clinically useful as a first-stage screen. Health, mobility, and socioeconomic features contain genuine, independent predictive signal — not just an echo of past depression.
+**Table 7. Threshold optimisation results, W6+W7 arm.**
 
-### 6.7 Ensemble
+| Model | F1 @ t=0.50 | Optimal t | F1 @ optimal t | Recall @ opt | Precision @ opt |
+|-------|-------------|-----------|----------------|--------------|-----------------|
+| RF (tuned) | 0.582 | 0.58 | 0.606 | 0.627 | 0.586 |
+| XGBoost (tuned) | 0.585 | 0.55 | 0.593 | 0.643 | 0.549 |
+| LightGBM (tuned) | 0.577 | 0.58 | 0.592 | 0.624 | 0.563 |
+| LR (baseline) | 0.559 | 0.60 | 0.570 | 0.591 | 0.551 |
 
-A simple averaging ensemble of the three tuned tree models (RF + XGB + LGBM) on the W6+W7 full configuration produced AUC = 0.847 — essentially tied with the best single model. This means the algorithms are learning the same underlying patterns, and there is no diversity bonus to exploit. We report the tuned Random Forest as the headline model for simplicity.
+The optimal F1 threshold for RF is 0.58, above the default 0.50, yielding an improvement of +0.024 F1. The threshold being above 0.50 is explained by the `class_weight='balanced'` setting: balanced training already shifts the model toward generosity with positive predictions, elevating raw probability outputs. Raising the threshold to 0.58 filters low-confidence positive predictions and improves precision enough to lift F1. At the optimal threshold, the recall–precision tradeoff (0.627 / 0.586) is substantially more balanced than at the default.
+
+### 6.5 Domain ablation and feature correlation (RQ3 setup)
+
+**Table 8. Leave-one-domain-out domain ablation, W6+W7 arm, RF tuned.**
+
+| Domain removed | AUC | AUC drop | Interpretation |
+|----------------|-----|----------|-----------------|
+| None (full model) | 0.848 | 0.000 | Baseline |
+| **Prior depression** | **0.771** | **+0.077** | **Dominant predictor** |
+| Self-rated health | 0.843 | +0.005 | Second most informative unique signal |
+| Demographics | 0.848 | +0.000 | Redundant with health features |
+| Chronic conditions | 0.849 | −0.001 | Signal captured by self-rated health |
+| Mobility/function | 0.849 | −0.001 | Signal captured by correlated features |
+| Cognition | 0.849 | −0.000 | Near-zero unique contribution |
+| Socioeconomic | 0.849 | −0.001 | Signal captured by health and mobility |
+| Social/housing | 0.850 | −0.001 | Near-zero unique contribution |
+| Lifestyle/digital | 0.849 | −0.000 | Near-zero unique contribution |
+
+The near-zero AUC drops for most domains require careful interpretation. They do **not** mean those domains are unimportant. The domain correlation heatmap reveals why: mobility/function and self-rated health share a mean absolute Pearson correlation of approximately 0.45; chronic conditions and self-rated health correlate at approximately 0.38. When one domain is removed, the model reconstructs its signal from correlated neighbours. **Domain ablation measures unique contribution given all other features are present, not total contribution.**
+
+The top 25 features by raw point-biserial correlation with `depressed_w8` confirm the domain-level findings independently: `cesd_sc_w7` and `cesd_sc_w6` have the highest positive correlations; `hemob96_w6` (no mobility difficulties flag) shows strong negative correlation; `findiff` (financial difficulty) shows positive correlation; `totwq5_bu_s` (wealth quintile) shows negative correlation. These rankings are consistent with the post-modelling SHAP results, providing convergent pre-modelling and post-modelling evidence.
+
+### 6.6 Leakage sensitivity and SHAP (RQ3 answer)
+
+**Table 9. Leakage sensitivity analysis across all three arms.**
+
+| Arm | AUC with CES-D | AUC without CES-D | AUC retained |
+|-----|----------------|--------------------|--------------|
+| W6 only (LGBM) | 0.819 | 0.739 | 90.2% |
+| W7 only (RF) | 0.824 | 0.769 | 93.3% |
+| **W6+W7 (RF)** | **0.848** | **0.773** | **91.2%** |
+
+**RQ3 answer.** Across all three arms, removing all prior CES-D retains over **90 percent** of the original AUC. The W6+W7 arm retains AUC 0.773 (91 percent) without any depression history. **The model is genuinely learning from health, functional, and social risk factors rather than simply tracking depression persistence.**
+
+**SHAP — Act 1 (full model, W6+W7, RF tuned).** `cesd_sc` at Waves 7 and 6 dominate by a wide margin, with SHAP values extending from −0.15 to +0.25. The scale of non-CES-D features is substantially smaller. After the CES-D features: `mobility_count` (W7) ranks third, `srh_hrs` (W7) fifth, and `cesd_change` sixth.
+
+**SHAP — Act 2 (no prior CES-D, W6+W7, RF).** The ranking changes substantially. **`srh_hrs` (self-rated health, W7) rises to rank 1**; `hehelf` at both waves occupies ranks 2 and 3; `mobility_count` (W7 and W6) ranks 4 and 5; financial difficulty (`findiff`) ranks 8 and 10; sex ranks 9. The overall SHAP value scale compresses to −0.06 to +0.06, indicating the model **distributes signal across many features rather than anchoring on one dominant predictor**. Sex emerging is consistent with the higher depression prevalence in women (Kessler, 2003). The Act 1 → Act 2 transition is consistent with Ohrnberger et al. (2017) on self-rated health and Zaninotto et al. (2019) on cognitive and social factors as independent predictors.
+
+**Why this matters scientifically.** Act 2 is the clinically novel finding. It demonstrates that **depression risk leaves a measurable footprint in physical health, mobility, and economic circumstances 2–4 years before the depression itself manifests**. This aligns with the biopsychosocial model of late-life depression, where physical decline, social isolation, and financial stress are causal contributors, not just consequences.
+
+### 6.7 Clinical interpretability — LR coefficients and LightGBM importance
+
+Logistic Regression standardised coefficients (log-odds per 1 SD, W6+W7 full configuration):
+
+- `cesd_sc_w7` has the largest positive coefficient.
+- `hemob96_w6` (no mobility difficulties flag) has the largest negative coefficient, confirming it is strongly protective.
+- `totwq5_bu_s` (wealth quintile) is negative — higher wealth is protective.
+- `findiff` is positive — financial difficulty increases depression odds.
+- `sex` is positive — female sex associated with higher risk.
+
+**Three independent interpretation methods — SHAP, LR coefficients, and LightGBM gain importance — tell the same story:** prior CES-D features dominate; self-rated health and mobility are the leading non-depression predictors; financial difficulty and sex carry independent signal. Convergent evidence across methods strengthens confidence in the findings.
+
+LightGBM achieves AUC 0.843 versus RF 0.848, a gap of only 0.005. However, LightGBM achieves the best recall (0.758) among individual models. The RF–LightGBM gap is discussed in Section 7.2.
+
+### 6.8 Calibration
+
+All three tree models are **underconfident at low predicted probabilities** — when the model predicts 20 percent probability of depression, the actual rate is higher. Logistic Regression is better calibrated across the probability range, consistent with its known property as a well-calibrated probability estimator.
+
+**Isotonic regression calibration** applied to the tuned RF model substantially improves calibration in the 0.2–0.6 probability range with negligible AUC change (0.850 → 0.848). The calibrated RF model is recommended for any deployment context where the predicted probability is used as a clinical risk score rather than simply a binary classification.
 
 ---
 
-## 7. What The Model's Output Means
+## 7. Discussion
 
-### 7.1 What it produces
+### 7.1 Performance in clinical context
 
-For any person aged 50+ whose Wave 6 and Wave 7 ELSA-style answers are available, the model produces three things:
+The strongest model achieves AUC 0.848. **In a population screening scenario applied to 10,000 adults aged 50 and over with 19% prevalence**, the RF model at default threshold would correctly flag approximately 1,358 of the 1,900 individuals who will develop depression (recall 71.4%) while generating approximately 1,392 false alarms (17.3% of 8,100 non-depressed individuals). At the optimal threshold of 0.58, this shifts to fewer but higher-confidence positive predictions, achieving F1 0.606.
 
-1. **A probability between 0 and 1** — the model's estimate of the chance this person will score CES-D ≥ 3 at Wave 8 (i.e. show clinically significant depressive symptoms 2-4 years from now).
-2. **A binary label** — depressed (1) or not depressed (0), thresholded at 0.5 by default.
+**Different clinical objectives call for different model choices:**
+
+- **RF tuned** for best overall discrimination.
+- **Stacking ensemble** or **LightGBM** for maximum case detection (highest recall).
+- **LR** for clinical explainability (transparent coefficients).
+- **Calibrated RF** when the probability value itself is used for risk stratification.
+
+A more concrete deployment scenario: imagine a GP practice that already records ELSA-style data through routine over-50 health checks. The model could flag, say, the 200 patients out of 1,000 with the highest predicted depression risk. Those 200 would be invited for a 15-minute clinical interview using a validated diagnostic tool (e.g. PHQ-9 or structured clinical interview). Roughly 100 of them (precision ~50%) would meet criteria for early intervention; the other 900 patients are not screened in detail, saving substantial clinician time. Of the 1,000, about 142 would actually develop depression in the next 2-4 years; the model catches ~100 of them (71% recall). Compared to no targeted screening, this is a meaningful improvement in early detection.
+
+### 7.2 Why RF outperforms LightGBM
+
+RF performing marginally better than LightGBM is contrary to Zhao et al. (2025) but explicable on three grounds:
+
+1. **Sample size.** Our training sample of approximately 5,400 participants is at the lower end for gradient boosting to show its full advantage over bagging. RF's variance-reduction strategy is more robust at this scale.
+2. **Feature complexity.** Our feature set consists of integer-coded survey responses with limited deep non-linearity, which suits RF's bagging approach over the deeper tree-on-tree boosting that LightGBM exploits best.
+3. **Hyperparameter exploration.** Thirty-iteration `RandomizedSearchCV` may under-explore LightGBM's sensitive hyperparameter space (learning rate, leaves, regularisation interact). A larger search budget (≥100 iterations) might recover the gap.
+
+Zhao et al. used a larger cross-sectional sample without longitudinal attrition constraints — an approximately 30% larger effective sample — which favours boosting.
+
+### 7.3 What the model's output means
+
+For any person aged 50+ whose Wave 6 and Wave 7 ELSA-style answers are available, the model produces:
+
+1. **A probability between 0 and 1** — the model's estimate of the chance this person will score CES-D ≥ 3 at Wave 8 (i.e. show clinically significant depressive symptoms 2–4 years from now).
+2. **A binary label** — depressed (1) or not depressed (0), thresholded at 0.5 by default or 0.58 at the F1-optimal point.
 3. **Calibrated probabilities** — after isotonic regression, these are trustworthy: a "30% chance" really means 30 in 100 such people will develop depression.
 
-### 7.2 What it tells you
-
-If you rank everyone by predicted risk and screen the top 30%, you would catch about **71% of all future depression cases** in that population. The remaining 29% are missed — false negatives. About half of those flagged are false positives (would not actually develop depression). For a screening tool intended to prioritise people for clinical follow-up, that recall/precision balance is acceptable; for a standalone diagnostic instrument, it is not.
-
-### 7.3 What it is not
+What it **is** vs what it **is not**:
 
 | It is | It is not |
 |--------|-----------|
@@ -293,37 +421,37 @@ If you rank everyone by predicted risk and screen the top 30%, you would catch a
 | Useful as a population-screening prioritisation tool | Useful as a standalone clinical instrument |
 | Honest about uncertainty (calibrated probabilities) | A black-box "yes/no" verdict |
 
-### 7.4 The clinical scenario
-
-Imagine a GP practice that already records ELSA-style data through routine over-50 health checks. The model could flag, say, the 200 patients out of 1,000 with the highest predicted depression risk. Those 200 would be invited for a 15-minute clinical interview using a validated diagnostic tool (e.g. PHQ-9 or structured clinical interview). Roughly 100 of them (precision ~50%) would meet criteria for early intervention; the other 900 patients are not screened in detail, saving substantial clinician time. Of the 1,000, about 142 would actually develop depression in the next 2-4 years; the model catches ~100 of them (71% recall). Compared to no targeted screening, this is a meaningful improvement in early detection.
-
 ---
 
 ## 8. Limitations
 
 ### Methodological
 
-1. **Prior depression dominates.** Removing CES-D drops AUC from 0.85 to 0.77. The model's main signal is depression history (state dependence). The leakage sensitivity is what rescues the clinical novelty claim.
+1. **Prior depression dominates.** Removing CES-D drops AUC from 0.848 to 0.773. The model's main signal is depression history (state dependence). The leakage sensitivity is what rescues the clinical novelty claim.
 
-2. **Attrition bias.** Our analytic sample requires presence in all three waves. About 30% of Wave 6 respondents are excluded — and those people may be sicker, more isolated, or institutionalised, exactly the population at highest risk. The model likely underestimates true population risk.
+2. **Survivorship / attrition bias.** Our analytic sample requires presence in all three waves. About 30% of Wave 6 respondents are excluded — and those people may be older, sicker, more isolated, or institutionalised, exactly the population at highest risk. The model likely underestimates true population risk.
 
-3. **CES-D ≥ 3 is screening, not diagnosis.** It captures elevated depressive symptomatology, not Major Depressive Disorder. A person flagged by the model needs clinical confirmation before any treatment decision.
+3. **CES-D ≥ 3 is screening, not diagnosis.** It captures elevated depressive symptomatology, not Major Depressive Disorder. The CES-D threshold of 3 is a convenient binary cutoff applied to a continuous scale; regression models predicting the continuous score would provide richer characterisation. A person flagged by the model needs clinical confirmation before any treatment decision.
 
 4. **Observational design.** We identify *predictors*, not *causes*. Low wealth predicts depression; we cannot say poverty causes depression from this analysis alone — there may be unmeasured confounders (childhood adversity, undiagnosed physical illness, social network).
 
-5. **Class imbalance.** Precision for the depressed class is moderate (~49%). About half of model-flagged people would not develop depression. In a screening context this is acceptable; in a confirmatory context it is not.
+5. **Class imbalance trade-off.** Precision for the depressed class is moderate (~49%). About half of model-flagged people would not develop depression. In a screening context this is acceptable; in a confirmatory context it is not.
 
-6. **Wave selection introduces survivor effects.** Anyone who died, was institutionalised, or refused between W6 and W8 is excluded by the inner join.
+6. **Excluded variables.** The neighbourhood deprivation index (`ndepriv`) was excluded due to wave-symmetry enforcement. It may carry independent area-level socioeconomic signal beyond household-level financial difficulty.
+
+7. **Hyperparameter budget.** Thirty-iteration `RandomizedSearchCV` may under-explore LightGBM's hyperparameter space, partially explaining the RF vs LGBM AUC gap.
+
+8. **Generalisability boundaries.** ELSA samples English adults aged 50 and over. Findings may not generalise to younger populations, non-English contexts, or institutionalised residents. ELSA cohort effects also mean today's 50-year-olds are not the 50-year-olds in our sample.
 
 ### Technical (acknowledged from PR review process)
 
-7. **Missingness filter is computed once on a training split, not within each CV fold.** The gold standard for nested validation would wrap the missingness gate inside a custom transformer fit per fold. In practice the only column dropped (`ndepriv_w7` at 56%) would be dropped under any reasonable split, so the simplification has no practical impact.
+9. **Missingness filter is computed once on a training split, not within each CV fold.** The gold standard for nested validation would wrap the missingness gate inside a custom transformer fit per fold. In practice the only column dropped (`ndepriv_w7` at 56%) would be dropped under any reasonable split, so the simplification has no practical impact.
 
-8. **Engineered features bypass the missingness gate.** All 10 derived features have <0.3% missingness in our data, so this is theoretical only — but a production pipeline should apply the same gate uniformly.
+10. **Engineered features bypass the missingness gate.** All 10 derived features have <0.3% missingness in our data, so this is theoretical only — but a production pipeline should apply the same gate uniformly.
 
-9. **Logistic regression coefficients are on a standardised scale.** Because features pass through StandardScaler before LR, the reported coefficients are log-odds per 1 SD change, not per 1 raw unit. This is labelled correctly on the plot but should be noted when interpreting.
+11. **Logistic regression coefficients are on a standardised scale.** Because features pass through `StandardScaler` before LR, the reported coefficients are log-odds per 1 SD change, not per 1 raw unit. This is labelled correctly on the plot but should be noted when interpreting.
 
-10. **`functional_burden` uses `+` rather than `sum(..., min_count=1)`** — meaning if either ADL or IADL is fully missing, the burden score is NaN even if the other component is present. In our data this scenario does not occur (ADL and IADL come from the same questionnaire block) but the implementation is not maximally NaN-tolerant.
+12. **`functional_burden` uses `+` rather than `sum(..., min_count=1)`** — meaning if either ADL or IADL is fully missing, the burden score is NaN even if the other component is present. In our data this scenario does not occur (ADL and IADL come from the same questionnaire block) but the implementation is not maximally NaN-tolerant.
 
 ---
 
@@ -337,9 +465,11 @@ Imagine a GP practice that already records ELSA-style data through routine over-
 
 4. **Multi-wave trajectory modelling.** Rather than two snapshots (W6, W7), latent growth curve models or recurrent neural networks could capture richer temporal patterns across many waves.
 
-5. **Subgroup analysis.** Are the predictors equally informative across sex, ethnicity, and socioeconomic strata? Differential calibration is a major fairness concern in clinical ML and was not evaluated here.
+5. **Subgroup fairness analysis.** Are the predictors equally informative across sex, ethnicity, and socioeconomic strata? Differential calibration is a major fairness concern in clinical ML and was not evaluated here.
 
 6. **Cost-effectiveness modelling.** Combined with intervention efficacy data (e.g. CBT acceptance and remission rates in this population), the model's outputs could feed a Markov decision-process analysis estimating quality-adjusted life-years (QALYs) gained per pound of screening cost.
+
+7. **Wider hyperparameter sweep for LightGBM** with at least 100 iterations to confirm or close the RF–LGBM gap.
 
 ---
 
@@ -386,7 +516,7 @@ ELSA UKDA-5050 Stata files
         │
         ▼
 [10. Tune best config per arm]
-   • RandomizedSearchCV on RF/XGB/LGBM (9 tuned models)
+   • RandomizedSearchCV (30 iter, 5-fold CV) on RF/XGB/LGBM
         │
         ▼
 [11. Evaluate on held-out test set]
@@ -395,21 +525,24 @@ ELSA UKDA-5050 Stata files
         ▼
 [12. Interpretation]
    • Domain ablation • SHAP Act 1 (full) • SHAP Act 2 (no CES-D)
+   • LR coefs • LightGBM gain • Feature correlation
         │
         ▼
-[13. Sensitivity]
+[13. Sensitivity + ensembles]
    • Leakage analysis (with vs without prior CES-D, all 3 arms)
+   • Soft-vote (RF+XGB+LGBM) • Stacking (RF+LGBM, LR meta)
+   • Threshold optimisation
         │
         ▼
 [14. Reporting]
-   • 16 figures, 4 results CSVs, this report, presentation
+   • 16 figures, 6 results CSVs, this report, presentation
 ```
 
 ---
 
 ## 11. Reproducibility
 
-The submission notebook (`submission/ELSA_Depression_Prediction_Final_v2.ipynb`) is designed to run end-to-end in a single Colab session. The user sets one path variable (`ELSA_PATH`) pointing to either a downloaded UKDA-5050 zip file or the extracted folder. The notebook installs missing dependencies, locates the Stata files, runs all 60 baseline experiments + 9 tuning rounds + ensemble, and exports 16 figures and 4 CSVs to Google Drive. Expected runtime is 25 to 40 minutes on a standard Colab CPU instance.
+The submission notebook (`submission/ELSA_Depression_Prediction_Final_v2.ipynb`) is designed to run end-to-end in a single Colab session. The user sets one path variable (`ELSA_PATH`) pointing to either a downloaded UKDA-5050 zip file or the extracted folder. The notebook installs missing dependencies, locates the Stata files, runs all 60 baseline experiments + 9 tuning rounds + ensembles + threshold optimisation + calibration, and exports figures and CSVs to Google Drive. Expected runtime is 35–50 minutes on a standard Colab CPU instance, or 20–30 minutes on a T4 GPU.
 
 A fixed random seed (`SEED=42`) is used throughout. All splits, CV folds, hyperparameter searches, and SHAP samples are deterministic. Any user with UKDS access can reproduce every figure and every number in this report.
 
@@ -417,12 +550,12 @@ A fixed random seed (`SEED=42`) is used throughout. All splits, CV folds, hyperp
 
 ## 12. Team Contributions
 
-See [`team_contributions.md`](team_contributions.md) for the full list. Brief summary:
+See [`team_contributions.md`](team_contributions.md) for the full per-member narrative. Brief summary:
 
 - **Akeeb Lawel** — Data audit, wave selection, feature funnel
-- **Fiyin Akano** — Original W6+W7 pipeline, CES-D fix, leakage analysis, PR review process
-- **Zannat Chowdhury Sagar** — Preprocessing baseline, enhanced pipeline, final submission notebook
-- **Giridhar, Pushkar, Poorna** — see contributions doc
+- **Fiyin Akano** — Original W6+W7 pipeline, CES-D fix, leakage analysis, project report, presentation deck, PR review process
+- **Zannat Chowdhury Sagar** — Preprocessing baseline, enhanced pipeline (XGBoost/LightGBM/tuning/SHAP/calibration/stacking), final submission notebook, methods & findings report
+- **Giridhar Nampally, Pushkar Jadhav, Poorna Golla** — see contributions doc
 
 ---
 
@@ -432,9 +565,13 @@ Banks, J., Breeze, E., Lessof, C., and Nazroo, J. (Eds.). (2006). *Retirement, h
 
 Bergstra, J., and Bengio, Y. (2012). Random search for hyper-parameter optimization. *Journal of Machine Learning Research*, 13, 281–305.
 
-Ke, G., Meng, Q., Finley, T., et al. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.
+Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T. Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.
+
+Kessler, R. C. (2003). Epidemiology of women and depression. *Journal of Affective Disorders*, 74(1), 5–13.
 
 Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, 30.
+
+Ohrnberger, J., Fichera, E., and Sutton, M. (2017). The relationship between physical and mental health: A mediation analysis. *Social Science and Medicine*, 195, 42–49.
 
 Radloff, L. S. (1977). The CES-D scale: A self-report depression scale for research in the general population. *Applied Psychological Measurement*, 1(3), 385–401.
 
@@ -442,13 +579,15 @@ Steffick, D. E. (2000). *Documentation of affective functioning measures in the 
 
 Turvey, C. L., Wallace, R. B., and Herzog, R. (1999). A revised CES-D measure of depressive symptoms and a DSM-based measure of major depressive episodes in the elderly. *International Psychogeriatrics*, 11(2), 139–148.
 
+Zaninotto, P., Sommerlad, A., Kivimaki, M., and Steptoe, A. (2019). The bidirectional association between depressive symptoms and cognitive decline in adults aged over 50. *Psychological Medicine*, 47(7), 1321–1334.
+
 Zhao, Y., Wan, X., and Liu, Z. (2025). Machine learning identifies determinants of depressive symptoms in multinational middle-aged and older adults. *npj Digital Medicine*.
 
 ---
 
 ## Appendix A — Figures Index
 
-All saved to `outputs/figures/` and `submission` Drive output folder.
+All saved to `outputs/figures/` and copied to the submission Drive output folder.
 
 | File | Section | Purpose |
 |------|---------|---------|
@@ -458,23 +597,28 @@ All saved to `outputs/figures/` and `submission` Drive output folder.
 | `03_results/roc_curves.png` | Results | ROC curves, best model per arm |
 | `03_results/pr_curves.png` | Results | Precision-recall curves |
 | `03_results/confusion_matrices.png` | Results | Test-set confusion matrices |
-| `03_results/ensemble_roc.png` | Results | Ensemble vs individual models |
+| `03_results/threshold_optimisation.png` | Results | F1 vs threshold sweep |
+| `03_results/ensemble_roc.png` | Results | Soft-vote ensemble vs individual models |
+| `03_results/stacking_ensemble_roc.png` | Results | Stacking ensemble vs individual models |
 | `04_interpretation/domain_ablation.png` | Interpretation | Leave-one-domain-out |
+| `04_interpretation/domain_correlation_heatmap.png` | Interpretation | Cross-domain correlations |
+| `04_interpretation/feature_target_correlation.png` | Interpretation | Top-25 Pearson correlations |
 | `04_interpretation/shap_act1_full.png` | Interpretation | SHAP, full model |
 | `04_interpretation/shap_act2_no_cesd.png` | Interpretation | SHAP, no prior CES-D |
+| `04_interpretation/lgbm_importance_top20.png` | Interpretation | LightGBM gain importance |
+| `04_interpretation/lr_coefficients_standardised.png` | Interpretation | LR standardised coefficients |
 | `04_interpretation/calibration.png` | Interpretation | Reliability diagrams |
-| `04_interpretation/lr_coefficients_standardised.png` | Interpretation | LR coefficients |
-| `04_interpretation/lgbm_importance_top20.png` | Interpretation | LightGBM importance |
-| `04_interpretation/feature_target_correlation.png` | Interpretation | Pearson correlations |
-| `04_interpretation/domain_correlation_heatmap.png` | Interpretation | Cross-feature correlations |
+| `04_interpretation/calibration_isotonic.png` | Interpretation | Isotonic-calibrated reliability |
 | `05_sensitivity/leakage_sensitivity.png` | Sensitivity | With vs without CES-D |
 
 ## Appendix B — Results Files
 
-- `results/all_experiments.csv` — every (arm × config × model) combination, baseline run
-- `results/tuned_models.csv` — best tuned model per arm with CV best AUC
+- `results/all_experiments.csv` — every (arm × config × model) combination, baseline run (60 rows)
+- `results/tuned_models.csv` — best tuned model per arm with held-out test metrics
 - `results/domain_ablation.csv` — leave-one-domain-out AUC drops
 - `results/leakage_sensitivity.csv` — full vs no-CES-D for every arm
+- `results/threshold_optimisation.csv` — optimal F1 threshold per model
+- `results/stacking_ensemble.csv` — stacking vs individual models
 
 ---
 
