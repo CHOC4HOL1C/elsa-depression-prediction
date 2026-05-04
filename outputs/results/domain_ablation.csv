@@ -1,0 +1,11 @@
+domain,n_features,AUC,AUC_drop
+prior_depression,133,0.7712,0.077
+self_rated_health,128,0.8431,0.0052
+demographics,128,0.8478,0.0005
+None (full),138,0.8483,0.0
+lifestyle_digital,130,0.8485,-0.0002
+chronic_conditions,124,0.8485,-0.0002
+cognition,134,0.8486,-0.0003
+mobility_function,125,0.8492,-0.0009
+socioeconomic,128,0.8492,-0.0009
+social_housing,124,0.8496,-0.0013
