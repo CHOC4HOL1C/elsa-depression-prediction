@@ -1,123 +1,219 @@
-# ELSA Depression Prediction — Submission Code
+# ELSA Depression Prediction
 
-**Module:** AI and Healthcare (EEEM069)
-**Group 4 — "Health is Wealth"**
-**University of Surrey, MSc Artificial Intelligence (2025/26)**
+Early prediction of depression onset in older English adults using machine learning on longitudinal survey data.
 
----
-
-## What's in this folder
-
-| File | What it is | Recommended audience |
-|------|------------|----------------------|
-| `ELSA_Depression_Prediction.ipynb` | **Run-once submission notebook.** Self-contained, well-commented, ~10–15 min on Colab. Generates all headline results. | The marker — run this one. |
-| `ELSA_Depression_Prediction_Full.ipynb` | **Full enhanced pipeline (appendix).** Three prediction arms × five feature configurations × four models = 60 baseline experiments, plus hyperparameter tuning, calibration, ensemble. ~30–45 min runtime. | Anyone wanting to see the full experimental sweep. |
-| `requirements.txt` | Python dependencies. Auto-installed by the notebook on Colab. | Reference. |
-| `build_submission_notebook.py` | The script used to generate the run-once notebook from a single source. Re-run this if the source ever needs editing. | Maintainers. |
+**Module:** AI and Healthcare, University of Surrey, 2025/26  
+**Dataset:** English Longitudinal Study of Ageing (ELSA), UKDS Study 5050  
+**Team:** Akeeb Lawel, Fiyin Akano, Zannat Chowdhury Sagar, Giridhar Nampally, Pushkar Jadav, Poorna Golla, Thomas Corrigan
 
 ---
 
-## How to run the submission notebook
+## Overview
 
-### Option A — Google Colab (recommended)
+This project trains machine learning models to predict whether an individual will develop clinically significant depression (CES-D >= 3) at Wave 8 of ELSA, using non-clinical survey data from Waves 6 and 7 collected two to four years earlier.
 
-The notebook **finds your data automatically** if you put it in any of the standard places. Pick whichever is fastest for you.
+Three prediction arms are compared to answer distinct research questions about prediction horizon and the value of longitudinal data. Four models are evaluated across five feature configurations per arm, with hyperparameter tuning on the best configuration per arm.
 
-#### Fastest — upload a zip directly to the Colab session (~5 minutes)
+GitHub Repo Link: https://github.com/CHOC4HOL1C/elsa-depression-prediction
 
-1. On your machine, zip the `UKDA-5050-stata` folder (right-click → Compress).
-2. Open the notebook (`ELSA_Depression_Prediction.ipynb`) in Colab.
-3. **Runtime → Run all.** When the notebook tells you it could not find data, run the **"Plan B — zip upload"** cell. It opens a file picker; choose your zip and the notebook unzips and continues automatically.
+### Research Questions
 
-The data lives in the Colab session only and disappears when the session ends — fine for a single evaluation run.
+**RQ1** -- Can ML models trained on ELSA survey data predict depression onset 2 to 4 years in advance in adults aged 50 and over?
 
-#### Persistent — place data in Google Drive (~30 minutes upload, then permanent)
+**RQ2** -- Does incorporating longitudinal information across two waves improve predictive performance, and does prediction horizon length affect accuracy?
 
-1. In `drive.google.com`, create a folder called `ELSA`.
-2. Upload the entire `UKDA-5050-stata` folder into it. Final path should be `MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se/`.
-3. Open the notebook in Colab and click **Runtime → Run all.** It auto-mounts Drive and finds the data.
+**RQ3** -- Which feature domains carry independent predictive signal beyond prior depression history, and does the model retain clinically meaningful accuracy when prior depression scores are excluded?
 
-#### Manual override
+### Key Results
 
-If your data lives somewhere unusual, edit the single line in **Section 0**:
+| Arm | Best model | AUC | Recall |
+|-----|-----------|-----|--------|
+| W6 only (4-year horizon) | LGBM tuned | 0.819 | 0.732 |
+| W7 only (2-year horizon) | RF tuned | 0.824 | 0.668 |
+| W6+W7 combined | RF tuned | 0.848 | 0.714 |
+
+Without prior CES-D scores, the W6+W7 model retains AUC 0.773 (91% of full model performance), confirming that the model learns genuine health and social risk factors beyond depression persistence tracking.
+
+---
+
+## How to Run
+
+The submission notebook is designed to run end-to-end from a single path configuration. No other setup is required.
+
+### Step 1 -- Get the data
+
+Request access to ELSA (UKDS Study 5050) at [ukdataservice.ac.uk](https://ukdataservice.ac.uk). Download the Stata format package. You will receive a zip file or an extracted folder.
+
+### Step 2 -- Open the notebook
+
+Upload `submission/ELSA_Depression_Prediction_Final_v2.ipynb` to Google Colab (or run locally with Jupyter).
+
+### Step 3 -- Set your path
+
+In Section 0.1 (the first code cell), set `ELSA_PATH` to your data. The notebook handles both scenarios automatically:
 
 ```python
-ELSA_PATH = "/your/path/to/stata13_se"
+# Option A: path to the downloaded zip file
+ELSA_PATH = "/content/drive/MyDrive/UKDA-5050-stata.zip"
+
+# Option B: path to the extracted folder at any level
+ELSA_PATH = "/content/drive/MyDrive/ELSA/data"
 ```
 
-### Option B — Local Jupyter
+The path detection logic accepts a zip file, any parent directory at any depth, or the `stata13_se` folder directly. It searches downward using `rglob` and raises a clear error message if the data files cannot be found.
 
-1. Create a virtual environment and install dependencies:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. Open the notebook in Jupyter / VS Code.
-3. Either set `ELSA_PATH` explicitly in Section 0, or just leave it empty and the auto-locator will scan `~/Documents` for any `stata13_se` folder.
-4. Run all cells.
+### Step 4 -- Run all
+
+Runtime > Run all. The notebook installs any missing packages, locates the data files, runs all experiments, and copies outputs to your Drive.
+
+**Expected runtime:** 35 to 50 minutes on a standard Colab CPU instance (hyperparameter tuning is the bottleneck). Using a T4 GPU reduces this to approximately 20 to 30 minutes.
 
 ---
 
-## What the notebook produces
+## Outputs
 
-### Figures (in `outputs_submission/figures/`)
+All figures and results tables are saved to `/content/outputs/` and copied to Google Drive at the end of Section 9.
 
-- `outcome_distribution.png` — Wave 8 CES-D histogram and class balance
-- `roc_pr_curves.png` — ROC and Precision-Recall curves for all four models
-- `confusion_matrices.png` — Confusion matrices for the best tree model and Logistic Regression baseline
-- `shap_bar.png` — Top 20 features by mean |SHAP| value
-- `shap_beeswarm.png` — SHAP beeswarm showing direction of effect
-- `leakage_sensitivity.png` — AUC with vs. without prior CES-D features
-
-### Results (in `outputs_submission/results/`)
-
-- `test_set_results.csv` — Full metrics table (AUC, F1, precision, recall, accuracy, average precision) for all four models
-- `leakage_sensitivity.csv` — AUC drop when CES-D features are removed, per model
-
-### Console output
-
-A final summary block prints sample size, prevalence, predictor count, all model AUCs, and the average leakage drop.
+```
+outputs/
+├── figures/
+│   ├── 01_data/
+│   │   └── outcome_distribution.png
+│   ├── 02_experiments/
+│   │   └── auc_all_arms_configs.png
+│   ├── 03_results/
+│   │   ├── arm_comparison.png
+│   │   ├── roc_curves.png
+│   │   ├── pr_curves.png
+│   │   ├── confusion_matrices.png
+│   │   ├── threshold_optimisation.png
+│   │   ├── ensemble_roc.png
+│   │   └── stacking_ensemble_roc.png
+│   ├── 04_interpretation/
+│   │   ├── domain_ablation.png
+│   │   ├── domain_correlation_heatmap.png
+│   │   ├── feature_target_correlation.png
+│   │   ├── shap_act1_full.png
+│   │   ├── shap_act2_no_cesd.png
+│   │   ├── lgbm_importance_top20.png
+│   │   ├── lr_coefficients_standardised.png
+│   │   ├── calibration.png
+│   │   └── calibration_isotonic.png
+│   └── 05_sensitivity/
+│       └── leakage_sensitivity.png
+└── results/
+    ├── all_experiments.csv        (3 arms x 5 configs x 4 models)
+    ├── tuned_models.csv           (best tuned model per arm)
+    ├── domain_ablation.csv        (leave-one-domain-out AUC)
+    ├── leakage_sensitivity.csv    (with vs without prior CES-D)
+    ├── threshold_optimisation.csv (optimal F1 threshold per model)
+    └── stacking_ensemble.csv      (stacking vs individual models)
+```
 
 ---
 
-## Requirements
-
-The notebook auto-installs anything missing on Colab. For reference:
+## Repository Structure
 
 ```
-numpy
+elsa-depression-prediction/
+├── submission/
+│   └── ELSA_Depression_Prediction_Final_v2.ipynb   FINAL SUBMISSION NOTEBOOK
+├── notebooks/
+│   ├── 01_data_audit/
+│   │   └── AI_Health_Group_Project.ipynb            Akeeb -- audit and feature selection
+│   ├── 03_preprocessing_modelling/
+│   │   └── 03_preprocessing_modelling.ipynb         Zannat -- W6 baseline, feature comparison
+│   └── 05_modelling/
+│       ├── depression_prediction_pipeline.ipynb      Fiyin -- W6+W7 longitudinal pipeline
+│       └── depression_pipeline_enhanced_v2.ipynb     Zannat -- extended analysis
+├── outputs/
+│   ├── figures/                                      All saved plots
+│   └── results/                                      All saved CSVs
+├── docs/
+│   └── team_contributions.md
+├── config.py                                         Shared path configuration
+└── README.md
+```
+
+---
+
+## Experimental Design
+
+| Element | Detail |
+|---------|--------|
+| Outcome | CES-D >= 3 at Wave 8 (Steffick, 2000) |
+| Class imbalance | class_weight='balanced' for LR and RF; scale_pos_weight=4 for XGBoost; class_weight='balanced' for LightGBM |
+| Arms | W6 only, W7 only, W6+W7 combined |
+| Feature configs | 5 per arm: full, no prior CES-D, health only, function/cognition, socioeconomic |
+| Models | LR (baseline), RF (tuned), XGBoost (tuned), LightGBM (tuned) |
+| Tuning | RandomizedSearchCV, 30 iterations, 5-fold stratified CV, scoring=roc_auc |
+| Validation | Stratified 80/20 train/test split, same split reused across all arms |
+| Primary metric | ROC-AUC (discrimination, threshold-independent) |
+| Clinical metric | Binary F1 and Recall (depression detection performance) |
+| Ensembles | Soft-vote (RF+XGB+LGBM) and stacking (RF+LGBM base, LR meta) |
+
+---
+
+## CES-D Scoring Note
+
+ELSA's CES-D is scored as a sum of 8 binary items (yes/no), giving a range of 0 to 8. We use the IFS-validated `cesd_sc` variable from the IFS derived files. An earlier version of the preprocessing pipeline reconstructed the score from raw PSced items using a 0 to 3 per-item scale, which produced a range of 8 to 16 and approximately 74 percent apparent prevalence. This artefact is documented in `notebooks/03_preprocessing_modelling/` and corrected throughout the submission pipeline. The corrected prevalence is 19 percent, consistent with epidemiological estimates for English adults aged 50 and over.
+
+---
+
+## Wave Symmetry Enforcement
+
+The neighbourhood deprivation index (`ndepriv`) was dropped from both waves because the Wave 7 version had 56 percent missing data in the training partition. The wave-symmetry rule requires that if a variable stem fails the missingness threshold at one wave, both wave versions are removed. This prevents the longitudinal model from using predictors that are asymmetrically available across time, which would produce an inconsistent measure across participants.
+
+---
+
+## Team Contributions
+
+| Member | Primary contributions |
+|--------|----------------------|
+| Akeeb Lawel | Data audit, wave selection, feature selection pipeline, CES-D quality analysis, `analytic_sample.parquet` handoff |
+| Fiyin Akano | Longitudinal pipeline (W6+W7), CES-D scoring fix, leakage sensitivity analysis, 11 presentation figures |
+| Zannat Chowdhury Sagar | Preprocessing baseline, feature-set comparison (Config A vs B), enhanced pipeline (XGBoost, LightGBM, tuning, domain ablation, SHAP two-act narrative, calibration, ensemble), final submission notebook, README, PR reviews |
+| Giridhar Nampally | Feature domain review, methodology input |
+| Pushkar Jadav | Feature engineering input, presentation support |
+| Poorna Golla | Evaluation metrics review, documentation support |
+
+---
+
+## Dependencies
+
+```
 pandas
-matplotlib
-seaborn
+numpy
+pyreadstat
 scikit-learn
 xgboost
 lightgbm
 shap
+matplotlib
+seaborn
+scipy
 ```
 
-All packages are pinned to the latest stable versions.
+The notebook installs any missing packages automatically on first run via pip.
 
 ---
 
-## Project documentation
+## References
 
-The accompanying documentation is in the parent submission package:
+Banks, J., Breeze, E., Lessof, C., and Nazroo, J. (Eds.). (2006). *Retirement, health and relationships of the older population in England: The 2004 English Longitudinal Study of Ageing*. London: Institute for Fiscal Studies.
 
-- `documents/ELSA_Depression_Prediction_Report.docx` — full project report
-- `documents/team_contributions.md` — per-member contribution summary
-- `documents/Meeting_Minutes.docx` — group meeting minutes
-- `presentation/ELSA_Depression_Prediction.pptx` — 10-minute presentation deck
-- `presentation/SPEAKER_NOTES.md` — timed presenter scripts
-- `presentation/QA_FLASHCARDS.md` — Q&A preparation flashcards
+Bergstra, J., and Bengio, Y. (2012). Random search for hyper-parameter optimization. *Journal of Machine Learning Research*, 13, 281-305.
 
----
+Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T. Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.
 
-## Troubleshooting
+Kessler, R. C. (2003). Epidemiology of women and depression. *Journal of Affective Disorders*, 74(1), 5-13.
 
-**"ELSA_PATH does not exist"** — The `stata13_se` folder isn't where the notebook expects. Verify the path by listing the folder contents (`ls /content/drive/MyDrive/ELSA/UKDA-5050-stata/stata/stata13_se` in a code cell) and update `ELSA_PATH` accordingly.
+Ohrnberger, J., Fichera, E., and Sutton, M. (2017). The relationship between physical and mental health: A mediation analysis. *Social Science and Medicine*, 195, 42-49.
 
-**"Missing ELSA files"** — The path is correct but the expected `.dta` files aren't there. Check that you have the *Stata* version (not SPSS or tab) of UKDA-5050. The folder should contain files like `wave_6_elsa_data_v2.dta`.
+Radloff, L. S. (1977). The CES-D scale: A self-report depression scale for research in the general population. *Applied Psychological Measurement*, 1(3), 385-401.
 
-**SHAP runs slowly** — Normal on Colab CPU. The notebook subsamples 1,000 rows for SHAP, which takes 1–2 minutes for Random Forest and ~30 seconds for XGBoost/LightGBM.
+Steffick, D. E. (2000). *Documentation of affective functioning measures in the Health and Retirement Study*. HRS Documentation Report DR-005. Ann Arbor: University of Michigan.
 
-**Memory error on Colab** — Restart the runtime (Runtime → Restart) and run all cells again. ELSA core files are large (>1 GB combined) but the notebook only keeps the merged panel in memory.
+Zaninotto, P., Sommerlad, A., Kivimaki, M., and Steptoe, A. (2019). The bidirectional association between depressive symptoms and cognitive decline in adults aged over 50. *Psychological Medicine*, 47(7), 1321-1334.
+
+Zhao, Y., Wan, X., and Liu, Z. (2025). Machine learning identifies determinants of depressive symptoms in multinational middle-aged and older adults. *npj Digital Medicine*.

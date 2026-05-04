@@ -62,8 +62,8 @@ See [docs/team_contributions.md](docs/team_contributions.md) for a full breakdow
 | Name | GitHub |
 |------|--------|
 | Zannat Chowdhury Sagar | [@CHOC4HOL1C](https://github.com/CHOC4HOL1C) |
-| Akeeb Lawel | [TEAMMATE_GITHUB_USERNAME] |
-| Fiyin Akano | [TEAMMATE_GITHUB_USERNAME] |
+| Akeeb Lawel | [@lawalidowu] |
+| Fiyin Akano | [@TheFinix13] |(https://github.com/TheFinix13)
 | Giridhar Nampally | [TEAMMATE_GITHUB_USERNAME] |
 | Pushkar Jadav | [TEAMMATE_GITHUB_USERNAME] |
 | Poorna Golla | [TEAMMATE_GITHUB_USERNAME] |
