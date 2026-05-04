@@ -66,7 +66,14 @@ The path detection logic accepts a zip file, any parent directory at any depth, 
 
 Runtime > Run all. The notebook installs any missing packages, locates the data files, runs all experiments, and copies outputs to your Drive.
 
-**Expected runtime:** 35 to 50 minutes on a standard Colab CPU instance (hyperparameter tuning is the bottleneck). Using a T4 GPU reduces this to approximately 20 to 30 minutes.
+**Expected runtime.** A `FAST_MODE` flag in Section 0.4 controls runtime vs. exact reproducibility:
+
+| Setting | Tuning budget | SHAP sample | Colab CPU runtime | Use when |
+|---|---|---|---|---|
+| `FAST_MODE = True` (default) | 10 iter × 3 folds | 200 | ~15-25 min | Marking / quick review |
+| `FAST_MODE = False` | 30 iter × 5 folds | 500 | ~60-90 min | Exact reproduction of the report's headline AUCs |
+
+In fast mode, tuned AUCs typically land within 0.005-0.010 of the published values (the leakage drop, cross-arm ordering, SHAP rankings, and clinical conclusions are unchanged). Set `FAST_MODE = False` if you want to reproduce the exact numbers in `outputs/results/`.
 
 ---
 

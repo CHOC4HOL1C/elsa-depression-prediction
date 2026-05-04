@@ -542,7 +542,9 @@ ELSA UKDA-5050 Stata files
 
 ## 11. Reproducibility
 
-The submission notebook (`submission/ELSA_Depression_Prediction_Final_v2.ipynb`) is designed to run end-to-end in a single Colab session. The user sets one path variable (`ELSA_PATH`) pointing to either a downloaded UKDA-5050 zip file or the extracted folder. The notebook installs missing dependencies, locates the Stata files, runs all 60 baseline experiments + 9 tuning rounds + ensembles + threshold optimisation + calibration, and exports figures and CSVs to Google Drive. Expected runtime is 35–50 minutes on a standard Colab CPU instance, or 20–30 minutes on a T4 GPU.
+The submission notebook (`submission/ELSA_Depression_Prediction_Final_v2.ipynb`) is designed to run end-to-end in a single Colab session. The user sets one path variable (`ELSA_PATH`) pointing to either a downloaded UKDA-5050 zip file or the extracted folder. The notebook installs missing dependencies, locates the Stata files, runs all 60 baseline experiments + 9 tuning rounds + ensembles + threshold optimisation + calibration, and exports figures and CSVs to Google Drive.
+
+A `FAST_MODE` flag in Section 0.4 of the notebook controls the runtime/precision trade-off. With `FAST_MODE = True` (default) the tuning sweep uses 10 iterations × 3-fold CV and SHAP samples 200 rows, completing in ~15-25 min on a Colab CPU runtime. With `FAST_MODE = False` the full 30-iteration × 5-fold tuning and 500-row SHAP run, reproducing the exact headline AUCs in this report at a cost of ~60-90 min on Colab CPU. The fast-mode AUCs typically land within 0.005-0.010 of the values reported in Tables 4 and 6; the cross-arm ordering, leakage drop, SHAP rankings, and clinical conclusions are unchanged.
 
 A fixed random seed (`SEED=42`) is used throughout. All splits, CV folds, hyperparameter searches, and SHAP samples are deterministic. Any user with UKDS access can reproduce every figure and every number in this report.
 
