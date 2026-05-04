@@ -72,8 +72,16 @@ Read each card aloud once before the presentation. Anchor numbers help you point
 - **Deeper:** W6-only is a 4-year prediction horizon, W7-only is 2 years, and W6+W7 combines both with engineered change features. Identical participant rows across all three arms makes the comparison clean. Result: W7-only (0.824 AUC) beats W6-only (0.819) slightly, and the combined model wins at 0.848. The gain from combining waves is real but small — about 0.025 AUC.
 - **Anchor:** Slide 7-8.
 
+### C5a. Did you try an ensemble or stacking?
+- **One-liner:** Both. Soft-vote tied with the best single model; stacking gave the highest recall of any configuration tested.
+- **Deeper:** A soft-vote ensemble of RF, XGBoost, and LightGBM achieved AUC 0.847 — essentially identical to the best single model (0.848). The three trees are too correlated for averaging to help. We then built a stacking ensemble with RF and LightGBM as base learners and Logistic Regression as the meta-learner, fitted on 5-fold out-of-fold probabilities. AUC was slightly lower at 0.841 but recall hit 0.773 — the highest of any model configuration. The meta-learner learned to weight LightGBM (highest-recall base) more heavily. For clinical screening where missing a case is the worst outcome, the stacking ensemble would be our deployment recommendation.
+
+### C5b. Why use the default 0.5 threshold? Did you optimise it?
+- **One-liner:** Yes. The F1-optimal threshold for RF is 0.58, lifting F1 from 0.582 to 0.606.
+- **Deeper:** We swept thresholds from 0.10 to 0.60 and selected the one maximising binary F1. The optimum sits at 0.58 — above the default — because `class_weight='balanced'` already shifts the model toward generosity with positive predictions, so raw probabilities tend to skew high. Raising the threshold filters low-confidence positives and improves precision enough to lift F1 by +0.024. We deliberately reported the default-threshold numbers as our headline so cross-arm comparisons stay clean; the optimal-threshold numbers are documented in the report for any future deployment work.
+
 ### C5. How did you tune hyperparameters?
-- **One-liner:** RandomizedSearchCV with 50 iterations and 5-fold stratified CV, AUC as the optimisation metric.
+- **One-liner:** RandomizedSearchCV with 30 iterations and 5-fold stratified CV, AUC as the optimisation metric.
 - **Deeper:** For each arm, we picked the best feature configuration by mean baseline AUC across all four models, then tuned RF, XGB, and LGBM on that configuration. Logistic Regression kept default parameters as the baseline. Tuning was done entirely on the training set; the test set was untouched throughout. Random search was chosen over grid search because Bergstra and Bengio (2012) showed it explores high-impact hyperparameter directions more efficiently with the same compute budget.
 - **Anchor:** Slide 7.
 
@@ -114,6 +122,15 @@ Read each card aloud once before the presentation. Anchor numbers help you point
 - **One-liner:** Depression risk leaves a measurable footprint in physical, functional, and economic data 2-4 years before symptoms emerge.
 - **Deeper:** Even without using any mental health feature at all, the model achieves AUC 0.77 — a clinically useful screening signal. This means a GP practice that already collects routine over-50 health-check data could deploy a model like this without administering any depression questionnaire. It also aligns with the biopsychosocial model of late-life depression, where physical decline, social isolation, and economic stress are causal contributors, not just consequences.
 - **Anchor:** Slide 10.
+
+### E3a. Why does removing each non-CES-D domain barely change AUC? Does that mean those domains don't matter?
+- **One-liner:** No — the domains carry signal but heavily overlap, so the model recovers from any single domain's removal using correlated neighbours.
+- **Deeper:** Domain ablation removes one domain at a time. Self-rated health, mobility, and chronic conditions all measure overlapping aspects of physical health — their pairwise mean-absolute Pearson correlations sit between 0.38 and 0.45. When you remove mobility, the model reconstructs the lost signal from self-rated health and chronic conditions; AUC barely budges. This is a redundancy story, not an irrelevance story. The leakage-sensitivity analysis gives the right counterfactual — strip an entire signal family (all CES-D features) and the drop is real (0.077 AUC). The pre-modelling Pearson correlations between every feature and the outcome confirm the same ranking that SHAP produces post-modelling.
+- **Anchor:** Slide 9 (SHAP) and slide 10 (leakage).
+
+### E3b. How sure are you about your feature interpretation? Could SHAP be misleading?
+- **One-liner:** Very sure — three independent interpretation methods agree. SHAP, LR coefficients, and LightGBM gain importance all rank the same features in the top tier.
+- **Deeper:** Single interpretation methods are fragile. We ran four convergent strategies. SHAP on the tuned RF gives the post-modelling explanation. Standardised LR coefficients give a parametric, log-odds-per-SD ranking. LightGBM gain importance gives a tree-information-theoretic ranking. Per-feature point-biserial correlation with the outcome gives a pre-modelling sanity check. All four rank `cesd_sc_w7`, `cesd_sc_w6`, `srh_hrs`, `mobility_count`, and `findiff` in the top tier. Convergent evidence across methods strengthens confidence — if they disagreed we'd flag a problem.
 
 ### E4. What does the model output mean for an individual?
 - **One-liner:** A calibrated probability between 0 and 1 — their estimated risk of developing depression in 2-4 years.
@@ -162,6 +179,11 @@ Read each card aloud once before the presentation. Anchor numbers help you point
 - **One-liner:** Our split is at the participant level, not the time level. The temporal direction is built in: we predict W8 from W6 and W7.
 - **Deeper:** This is a common confusion. A temporal hold-out applies when you have time-series data and want to test forecasting on later periods. Our design is participant-level: each row is a person, observed across W6, W7, W8. We hold out 25% of *people* for testing. The temporal direction is enforced by feature design — predictors come from W6 and W7, the label is W8. There's no temporal leakage.
 - **Anchor:** Slide 7.
+
+### G3a. Are your probabilities calibrated? Can a clinician trust them as risk scores?
+- **One-liner:** Yes — we applied isotonic regression calibration. After calibration, a "30% predicted risk" really corresponds to ~30% observed depression rate.
+- **Deeper:** Tree models are well-known to push probabilities toward 0 or 1, which makes them excellent rankers but unreliable risk scores. We built reliability diagrams for all four models and confirmed RF, XGB, and LGBM are underconfident at the low end and overconfident at the high end. We then fitted isotonic regression on a held-out 20% of the training split and applied it to the test set. Calibration improves substantially in the 0.2-0.6 probability range — the clinically relevant region — with negligible AUC change (0.850 → 0.848). Logistic Regression was already well-calibrated as expected. For deployment as a risk score (rather than a binary label), the calibrated RF is the recommended model.
+- **Anchor:** Slide 9 (mention briefly), full detail in the report.
 
 ### G4. Why didn't you do feature selection first?
 - **One-liner:** We did — the audit funnel reduced 12,539 candidates to 30 curated features per wave. Then within-pipeline regularisation handles the rest.

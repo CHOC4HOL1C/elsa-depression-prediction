@@ -62,7 +62,7 @@
 
 > "Three prediction arms answer RQ2: Wave 6 alone is a roughly 4-year horizon, Wave 7 alone is roughly 2 years, and the combined model uses both plus our change features. Identical participant rows across all three arms — the comparison is clean.
 >
-> Within each arm, five feature configurations answer RQ3: full, no-prior-CES-D, health only, function and cognition only, and socioeconomic only. Three arms times five configs times four models gives sixty baseline experiments. The best feature configuration per arm is then handed to RandomizedSearchCV — fifty iterations, five-fold cross-validation on the training set — to tune Random Forest, XGBoost, and LightGBM. Logistic Regression is kept at its defaults as a fair interpretable baseline."
+> Within each arm, five feature configurations answer RQ3: full, no-prior-CES-D, health only, function and cognition only, and socioeconomic only. Three arms times five configs times four models gives sixty baseline experiments. The best feature configuration per arm is then handed to RandomizedSearchCV — thirty iterations, five-fold cross-validation on the training set — to tune Random Forest, XGBoost, and LightGBM. Logistic Regression is kept at its defaults as a fair interpretable baseline."
 
 ---
 

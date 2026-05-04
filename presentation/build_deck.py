@@ -414,7 +414,7 @@ for i, (name, desc) in enumerate(configs):
              Inches(0.5), desc, size=11, color=GREY, align=PP_ALIGN.CENTER)
 
 section_band(s, Inches(6.0),
-             "3 arms \u00d7 5 configs \u00d7 4 models = 60 baseline experiments. Best config per arm then tuned via RandomizedSearchCV (50 iter, 5-fold).",
+             "3 arms \u00d7 5 configs \u00d7 4 models = 60 baseline experiments. Best config per arm then tuned via RandomizedSearchCV (30 iter, 5-fold).",
              accent=NAVY, body_size=12, label="Total experiments",
              height_in=0.95)
 add_footer(s, 7)
