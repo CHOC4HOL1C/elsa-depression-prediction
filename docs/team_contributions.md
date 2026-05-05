@@ -72,7 +72,7 @@
 
 **Final submission notebook:**
 
-- Authored the complete final submission notebook (`submission/ELSA_Depression_Prediction_Final_v2.ipynb`) from scratch: three prediction arms (W6 only, W7 only, W6+W7), five feature configurations, four models, hyperparameter tuning, domain ablation, two-act SHAP, calibration, leakage sensitivity, ensemble analysis, and threshold optimisation
+- Authored the complete final submission notebook (`submission/ELSA_Depression_Prediction.ipynb`) from scratch: three prediction arms (W6 only, W7 only, W6+W7), five feature configurations, four models, hyperparameter tuning, domain ablation, two-act SHAP, calibration, leakage sensitivity, ensemble analysis, and threshold optimisation
 - Implemented the auto-detecting path loader accepting zip files, extracted directories at any depth, or the `stata13_se` folder directly — enabling one-cell setup for any invigilator
 - Structured output into five figure subdirectories and a results directory, all copied to Drive at end of run
 

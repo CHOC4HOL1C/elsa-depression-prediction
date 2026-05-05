@@ -1,5 +1,5 @@
 """
-Run ELSA_Depression_Prediction_Final_v2.ipynb locally (no Colab needed).
+Run ELSA_Depression_Prediction.ipynb locally (no Colab needed).
 
 Patches the three Colab-specific assumptions:
   1. ELSA_PATH      -> local UKDA-5050-stata folder
@@ -7,8 +7,8 @@ Patches the three Colab-specific assumptions:
   3. OUT_ROOT       -> ../outputs/colab_local_run/  (writable workspace path)
 
 Executes cell-by-cell with live progress prints. The executed notebook is
-written to submission/ELSA_Depression_Prediction_Final_v2_executed.ipynb so
-the marker / team can inspect cell outputs without re-running.
+written to submission/ELSA_Depression_Prediction_Executed.ipynb so the
+marker / team can inspect cell outputs without re-running.
 """
 from __future__ import annotations
 import sys, time, json, os
@@ -19,8 +19,8 @@ from nbclient import NotebookClient
 from nbclient.exceptions import CellExecutionError
 
 REPO   = Path(__file__).resolve().parent.parent
-SRC    = REPO / "submission" / "ELSA_Depression_Prediction_Final_v2.ipynb"
-DST    = REPO / "submission" / "ELSA_Depression_Prediction_Final_v2_executed.ipynb"
+SRC    = REPO / "submission" / "ELSA_Depression_Prediction.ipynb"
+DST    = REPO / "submission" / "ELSA_Depression_Prediction_Executed.ipynb"
 DATA   = Path("/Users/the1finix/Documents/University of Surrey/Feb 2026 Courses/"
               "Surrey Courses/AIH/Group Project/Datasets/UKDA-5050-stata/stata/stata13_se")
 OUTDIR = REPO / "outputs" / "colab_local_run"

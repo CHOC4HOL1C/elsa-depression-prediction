@@ -46,7 +46,7 @@ Request access to ELSA (UKDS Study 5050) at [ukdataservice.ac.uk](https://ukdata
 
 ### Step 2 -- Open the notebook
 
-Upload `submission/ELSA_Depression_Prediction_Final_v2.ipynb` to Google Colab (or run locally with Jupyter).
+Upload `submission/ELSA_Depression_Prediction.ipynb` to Google Colab (or run locally with Jupyter).
 
 ### Step 3 -- Set your path
 
@@ -124,8 +124,8 @@ outputs/
 ```
 elsa-depression-prediction/
 ├── submission/
-│   ├── ELSA_Depression_Prediction_Final_v2.ipynb            FINAL SUBMISSION NOTEBOOK
-│   ├── ELSA_Depression_Prediction_Final_v2_executed.ipynb   Bonus: pre-executed copy with all outputs embedded
+│   ├── ELSA_Depression_Prediction.ipynb                     FINAL SUBMISSION NOTEBOOK
+│   ├── ELSA_Depression_Prediction_Executed.ipynb            Bonus: pre-executed copy with all outputs embedded
 │   ├── README.md                                            This file
 │   ├── requirements.txt                                     Pinned dependencies
 │   └── run_local.py                                         Optional helper: run the notebook locally without Colab
