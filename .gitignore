@@ -41,3 +41,8 @@ __pycache__/
 # outputs/results/
 submission/ELSA_Depression_Prediction_Submission/
 submission/ELSA_Depression_Prediction_Submission.zip
+
+# Local execution scaffold
+.venv_run/
+.jupyter_data/
+outputs/colab_local_run/

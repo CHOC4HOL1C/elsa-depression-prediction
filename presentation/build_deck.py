@@ -4,7 +4,7 @@ Build the ELSA Depression Prediction 10-minute presentation deck.
 Run:  python3 presentation/build_deck.py
 Outputs: presentation/ELSA_Depression_Prediction.pptx
 
-12 slides, ~50 seconds per slide for a 10-minute slot
+14 slides, ~43 seconds per slide for a 10-minute slot
 (plus 5 minutes for Q&A as per coursework brief).
 """
 from pathlib import Path
@@ -35,7 +35,7 @@ prs.slide_width  = Inches(13.333)
 prs.slide_height = Inches(7.5)
 
 BLANK = prs.slide_layouts[6]
-TOTAL = 12  # we update this at the end after we count slides
+TOTAL = 14  # final slide count, used for the page-number footer
 
 
 def add_rect(slide, left, top, width, height, fill):
@@ -428,13 +428,13 @@ add_header(s, "Headline Results",
            "Tuned Random Forest combining W6+W7 \u2014 AUC 0.85 on held-out test set")
 
 add_image(s, FIG / "roc_curves.png",
-          Inches(0.5), Inches(1.4), height=Inches(3.7))
+          Inches(0.5), Inches(1.4), height=Inches(3.4))
 add_image(s, FIG / "pr_curves.png",
-          Inches(6.7), Inches(1.4), height=Inches(3.7))
+          Inches(6.7), Inches(1.4), height=Inches(3.4))
 
 # Headline metric strip
-band_top = Inches(5.4)
-add_rect(s, Inches(0.5), band_top, Inches(12.3), Inches(1.55), LIGHT)
+band_top = Inches(4.95)
+add_rect(s, Inches(0.5), band_top, Inches(12.3), Inches(1.45), LIGHT)
 add_text(s, Inches(0.7), band_top + Inches(0.08), Inches(12), Inches(0.4),
          "Best tuned model per arm (test set)", size=14, bold=True, color=NAVY)
 
@@ -445,17 +445,80 @@ cols = [
 ]
 for i, (head, auc, rest, color) in enumerate(cols):
     cx = Inches(0.7 + i * 4.05)
-    add_text(s, cx, band_top + Inches(0.5), Inches(4), Inches(0.4),
+    add_text(s, cx, band_top + Inches(0.42), Inches(4), Inches(0.4),
              head, size=13, bold=True, color=color)
-    add_text(s, cx, band_top + Inches(0.85), Inches(4), Inches(0.4),
-             auc, size=18, bold=True, color=color)
-    add_text(s, cx, band_top + Inches(1.20), Inches(4), Inches(0.3),
+    add_text(s, cx, band_top + Inches(0.75), Inches(4), Inches(0.4),
+             auc, size=17, bold=True, color=color)
+    add_text(s, cx, band_top + Inches(1.10), Inches(4), Inches(0.3),
              rest, size=11, color=GREY)
+
+# Stacking ensemble callout (under the metric strip)
+add_rect(s, Inches(0.5), Inches(6.50), Inches(12.3), Inches(0.50), NAVY)
+add_text(s, Inches(0.7), Inches(6.55), Inches(12), Inches(0.45),
+         "Stacking ensemble  \u2014  RF + LGBM + LR meta  \u2014  AUC 0.841,  "
+         "Recall 0.773 (highest of any model)",
+         size=13, bold=True, color=WHITE)
 add_footer(s, 8)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SLIDE 9 — Interpretation: SHAP
+# SLIDE 9 — Clinical Deployment Readiness  (NEW)
+# ─────────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BLANK)
+add_header(s, "Clinical Deployment Readiness",
+           "Threshold tuning, calibrated probabilities, and stacking for screening")
+
+card_w = Inches(4.0)
+card_h = Inches(4.6)
+y = Inches(1.5)
+
+deploy_cards = [
+    ("Threshold optimisation",
+     TEAL,
+     [
+         "Default t = 0.50  \u2192  F1 0.580",
+         "**Optimal t \u2248 0.58  \u2192  F1 0.611** (+5%)",
+         "Lower t  \u2192  more recall, more false +ve",
+         "**Tune t to clinic capacity**, not 0.5",
+     ]),
+    ("Calibration",
+     CORAL,
+     [
+         "Tree models under-confident at low p",
+         "**Isotonic regression on RF** preserves AUC 0.848",
+         "Probabilities now reliable in p\u2208[0.2, 0.6]",
+         "LR is naturally well-calibrated",
+     ]),
+    ("Stacking ensemble",
+     AMBER,
+     [
+         "RF + LGBM base, LR meta-learner",
+         "AUC 0.841,  **Recall 0.773 (highest)**",
+         "Soft-vote: correlated errors  \u2192  no AUC gain",
+         "**For maximum case detection: stacking**",
+     ]),
+]
+for i, (head, c, bullets) in enumerate(deploy_cards):
+    x = Inches(0.5 + i * 4.15)
+    add_rect(s, x, y, card_w, card_h, LIGHT)
+    add_rect(s, x, y, card_w, Inches(0.55), c)
+    add_text(s, x, y + Inches(0.10), card_w, Inches(0.4),
+             head, size=16, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    add_bullets(s, x + Inches(0.25), y + Inches(0.75),
+                card_w - Inches(0.5), card_h - Inches(0.85),
+                bullets, size=12, spacing=8)
+
+section_band(s, Inches(6.20),
+             "Three deployment options match three clinical needs: best discrimination \u2192 RF tuned;  "
+             "reliable probability \u2192 calibrated RF;  maximum recall \u2192 stacking ensemble.",
+             accent=NAVY, body_size=12,
+             label="Choosing the right model for the right use case",
+             height_in=0.85)
+add_footer(s, 9)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SLIDE 10 — Interpretation: SHAP
 # ─────────────────────────────────────────────────────────────────────────────
 s = prs.slides.add_slide(BLANK)
 add_header(s, "What Drives the Predictions?",
@@ -482,11 +545,99 @@ add_bullets(s, Inches(7.5), Inches(4.65), Inches(5.6), Inches(2.5), [
     "Physical, mental, and social signals all visible 2-4 yrs ahead",
     "Aligns with established gerontological depression literature",
 ], size=12, spacing=4)
-add_footer(s, 9)
+add_footer(s, 10)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SLIDE 10 — Leakage Sensitivity (the central scientific finding)
+# SLIDE 11 — Robustness: Three Methods Agree  (NEW)
+# ─────────────────────────────────────────────────────────────────────────────
+s = prs.slides.add_slide(BLANK)
+add_header(s, "Robustness: Three Methods Agree",
+           "SHAP, LR coefficients, and LGBM gain converge on the same predictors")
+
+# Left half: convergent evidence table
+add_text(s, Inches(0.5), Inches(1.4), Inches(6.2), Inches(0.4),
+         "Convergent feature ranking (W6+W7)",
+         size=16, bold=True, color=TEAL)
+
+# Table header strip
+hdr_y = Inches(1.85)
+add_rect(s, Inches(0.5), hdr_y, Inches(6.2), Inches(0.45), NAVY)
+hdr_cols = [("Feature", 0.20, 2.40),
+            ("SHAP rank", 2.65, 1.05),
+            ("LR coeff", 3.80, 1.20),
+            ("LGBM gain", 5.10, 1.40)]
+for label, lx, lw in hdr_cols:
+    add_text(s, Inches(0.5 + lx), hdr_y + Inches(0.08), Inches(lw),
+             Inches(0.35), label, size=11, bold=True, color=WHITE)
+
+# Table rows
+rows = [
+    ("cesd_sc W7/W6",     "#1, #2",  "+0.89 / +0.70", "Dominant"),
+    ("Self-rated health", "#3 \u2013 #5",  "+ve",            "Top 5"),
+    ("Mobility count",    "#4 \u2013 #6",  "\u2212ve",       "Top 5"),
+    ("Financial diff.",   "#6 \u2013 #8",  "+0.32",          "Mid-tier"),
+    ("Wealth (totwq5)",   "#8",      "\u22120.34",     "Mid-tier"),
+    ("Sex (female)",      "#9 \u2013 #10", "+0.27",          "Mid-tier"),
+]
+for i, (feat, shap, lr, lgb) in enumerate(rows):
+    ry = Inches(2.30 + i * 0.42)
+    bg = LIGHT if i % 2 == 0 else WHITE
+    add_rect(s, Inches(0.5), ry, Inches(6.2), Inches(0.40), bg)
+    cells = [(feat, 0.20, 2.40), (shap, 2.65, 1.05),
+             (lr, 3.80, 1.20), (lgb, 5.10, 1.40)]
+    for txt, lx, lw in cells:
+        add_text(s, Inches(0.5 + lx), ry + Inches(0.08), Inches(lw),
+                 Inches(0.30), txt, size=11, color=NAVY)
+
+add_text(s, Inches(0.5), Inches(5.05), Inches(6.2), Inches(0.4),
+         "Three independent methods. Same ranking.",
+         size=12, bold=True, color=CORAL)
+
+# Right half: domain ablation
+add_text(s, Inches(7.0), Inches(1.4), Inches(6), Inches(0.4),
+         "Leave-one-domain-out AUC drop",
+         size=16, bold=True, color=AMBER)
+
+abl_y = Inches(1.85)
+ablations = [
+    ("Prior depression",   "\u22120.077", CORAL,  True),
+    ("Self-rated health",  "\u22120.005", GREY,   False),
+    ("Chronic conditions", "\u22480.000", GREY,   False),
+    ("Mobility / function","\u22480.000", GREY,   False),
+    ("Cognition",          "\u22480.000", GREY,   False),
+    ("Socioeconomic",      "\u22480.000", GREY,   False),
+    ("Lifestyle / digital","\u22480.000", GREY,   False),
+]
+for i, (dom, drop, c, hi) in enumerate(ablations):
+    ry = abl_y + Inches(i * 0.36)
+    if hi:
+        add_rect(s, Inches(7.0), ry, Inches(6), Inches(0.35), LIGHT)
+    add_text(s, Inches(7.05), ry + Inches(0.05), Inches(4.2), Inches(0.30),
+             dom, size=12, bold=hi, color=c)
+    add_text(s, Inches(11.30), ry + Inches(0.05), Inches(1.6), Inches(0.30),
+             drop, size=12, bold=hi, color=c, align=PP_ALIGN.RIGHT)
+
+add_text(s, Inches(7.0), Inches(4.50), Inches(6), Inches(0.4),
+         "Why near-zero for everything else?",
+         size=12, bold=True, color=NAVY)
+add_bullets(s, Inches(7.0), Inches(4.85), Inches(6), Inches(1.2), [
+    "Health, mobility, finance share **|r| \u2248 0.4\u20130.5**",
+    "Remove one domain  \u2192  model reconstructs from neighbours",
+    "Signal is **robust, not redundant**",
+], size=11, spacing=3)
+
+# Bottom takeaway band
+add_rect(s, Inches(0.5), Inches(6.50), Inches(12.3), Inches(0.50), NAVY)
+add_text(s, Inches(0.7), Inches(6.55), Inches(12), Inches(0.45),
+         "RQ3 holds: the same biopsychosocial predictors emerge under SHAP, LR coefficients, "
+         "LGBM gain, and ablation \u2014 the finding is not a SHAP artefact.",
+         size=12, bold=True, color=WHITE)
+add_footer(s, 11)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SLIDE 12 — Leakage Sensitivity (the central scientific finding)
 # ─────────────────────────────────────────────────────────────────────────────
 s = prs.slides.add_slide(BLANK)
 add_header(s, "Beyond Depression History",
@@ -519,11 +670,11 @@ add_text(s, Inches(0.7), Inches(6.15), Inches(12), Inches(0.4),
 add_text(s, Inches(0.7), Inches(6.50), Inches(12), Inches(0.5),
          "Depression risk leaves a measurable footprint in physical, functional, and economic data 2\u20134 years before symptoms emerge.",
          size=14, color=WHITE)
-add_footer(s, 10)
+add_footer(s, 12)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SLIDE 11 — Limitations
+# SLIDE 13 — Limitations
 # ─────────────────────────────────────────────────────────────────────────────
 s = prs.slides.add_slide(BLANK)
 add_header(s, "Limitations",
@@ -554,11 +705,11 @@ section_band(s, Inches(6.05),
              "These limitations were noted explicitly in the GitHub PR review process and accepted as documented constraints, not silent gaps.",
              accent=NAVY, body_size=12, label="Transparency",
              height_in=0.95)
-add_footer(s, 11)
+add_footer(s, 13)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SLIDE 12 — Future and Conclusion
+# SLIDE 14 — Future and Conclusion
 # ─────────────────────────────────────────────────────────────────────────────
 s = prs.slides.add_slide(BLANK)
 add_header(s, "Future Directions and Conclusion",
@@ -591,7 +742,7 @@ add_text(s, Inches(0.7), Inches(6.0), Inches(12), Inches(0.4),
 add_text(s, Inches(0.7), Inches(6.35), Inches(12), Inches(0.6),
          "Routine survey data can flag future depression with clinically useful accuracy 2\u20134 years in advance \u2014 even without using depression history at all.",
          size=15, bold=True, color=WHITE)
-add_footer(s, 12)
+add_footer(s, 14)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

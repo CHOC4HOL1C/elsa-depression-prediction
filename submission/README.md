@@ -4,7 +4,7 @@ Early prediction of depression onset in older English adults using machine learn
 
 **Module:** AI and Healthcare, University of Surrey, 2025/26  
 **Dataset:** English Longitudinal Study of Ageing (ELSA), UKDS Study 5050  
-**Team:** Akeeb Lawel, Fiyin Akano, Zannat Chowdhury Sagar, Giridhar Nampally, Pushkar Jadav, Poorna Golla, Thomas Corrigan
+**Team:** Akeeb Lawel, Fiyin Akano, Zannat Chowdhury Sagar, Giridhar Nampally, Pushkar Jadav, Poorna Golla
 
 ---
 
@@ -124,22 +124,23 @@ outputs/
 ```
 elsa-depression-prediction/
 ├── submission/
-│   └── ELSA_Depression_Prediction_Final_v2.ipynb   FINAL SUBMISSION NOTEBOOK
-├── notebooks/
-│   ├── 01_data_audit/
-│   │   └── AI_Health_Group_Project.ipynb            Akeeb -- audit and feature selection
-│   ├── 03_preprocessing_modelling/
-│   │   └── 03_preprocessing_modelling.ipynb         Zannat -- W6 baseline, feature comparison
+│   ├── ELSA_Depression_Prediction_Final_v2.ipynb            FINAL SUBMISSION NOTEBOOK
+│   ├── ELSA_Depression_Prediction_Final_v2_executed.ipynb   Bonus: pre-executed copy with all outputs embedded
+│   ├── README.md                                            This file
+│   ├── requirements.txt                                     Pinned dependencies
+│   └── run_local.py                                         Optional helper: run the notebook locally without Colab
+├── notebooks/                                              Earlier exploratory work (not needed for marking)
+│   ├── 01_data_audit/ELSA_Audit_Notebook.ipynb              Akeeb -- audit and feature selection
+│   ├── 02_data_loading/02_data_loading.ipynb                Data loading exploration
+│   ├── 03_preprocessing/03_preprocessing_modelling.ipynb    Zannat -- W6 baseline, feature comparison
 │   └── 05_modelling/
-│       ├── depression_prediction_pipeline.ipynb      Fiyin -- W6+W7 longitudinal pipeline
-│       └── depression_pipeline_enhanced_v2.ipynb     Zannat -- extended analysis
-├── outputs/
-│   ├── figures/                                      All saved plots
-│   └── results/                                      All saved CSVs
-├── docs/
-│   └── team_contributions.md
-├── config.py                                         Shared path configuration
-└── README.md
+│       ├── depression_prediction_pipeline.ipynb              Fiyin -- W6+W7 longitudinal pipeline
+│       └── depression_pipeline_enhanced.ipynb                Zannat -- extended analysis
+├── outputs/                                                All saved figures and CSVs
+├── presentation/                                           PowerPoint slides + speaker notes + Q&A flashcards
+├── docs/                                                   Report (DOCX/MD), meeting minutes, peer review
+├── config.py                                               Shared path configuration
+└── README.md                                               Repository-level README
 ```
 
 ---
